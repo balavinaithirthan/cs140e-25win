@@ -16,22 +16,23 @@
 
 // a not very interesting compile: throw the input into a
 // temporary file and then call gcc on the result.
+
 static void compile(char *program, char *outname) {
   FILE *fp = fopen("./temp-out.c", "w");
   assert(fp);
+#include "attack-seed.c"
   fprintf(fp, "%s", program);
   fclose(fp);
 
-  // for step 2 you will pattern match on
-  //   "static void compile(char *program, char *outname) {"
-  // and inject the attack
-
-  // match on login....
-  // and inject an attack for "ken"
+  /************************************************************
+   * don't modify the rest.
+   */
 
   // gross, call gcc.
   char buf[1024];
-  sprintf(buf, "gcc ./temp-out.c -o %s -Wno-nullability-completeness", outname);
+
+  sprintf(buf, "gcc ./temp-out.c -o %s -Wno-nullability-completeness",
+          outname); // how this works
   if (system(buf) != 0)
     error("system failed\n");
 }
