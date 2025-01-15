@@ -10,3 +10,5 @@ staff-*.c
 *.scratch
 staff
 .vscode
+*.plist
+*.[eE][xX][eE]
