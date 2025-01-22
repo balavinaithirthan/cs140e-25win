@@ -201,6 +201,9 @@ uint32_t GET32(uint32_t addr) {
   case gpio_fsel3:
     v = gpio_fsel3_v;
     break;
+  case gpio_fsel4:
+    v = gpio_fsel4_v;
+    break;
   // we don't allow reading these.
   // case gpio_set0:  v = gpio_set0_v;  break;
   // case gpio_clr0:  v = gpio_clr0_v;  break;
@@ -279,7 +282,6 @@ int main(int argc, char *argv[]) {
   PUT32(gpio_fsel1, fake_random());
   PUT32(gpio_fsel2, fake_random());
   PUT32(gpio_fsel3, fake_random());
-  PUT32(gpio_fsel4, fake_random());
 
   PUT32(gpio_set0, fake_random());
   PUT32(gpio_clr0, fake_random());

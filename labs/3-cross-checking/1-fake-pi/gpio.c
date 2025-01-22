@@ -8,6 +8,7 @@
  *
  * See rpi.h in this directory for the definitions.
  */
+#include "/Users/balavinaithirthan/Main/CS/cs140e-25win/libpi/include/gpio.h"
 #include "rpi.h"
 #include <stdio.h>
 
@@ -35,20 +36,55 @@ enum {
 // note: fsel0, fsel1, fsel2 are contiguous in memory, so you
 // can (and should) use array calculations!
 
-void gpio_set_output(unsigned pin) {
-  if (pin >= 32 && pin != 47)
+void gpio_set_function(unsigned int pin, gpio_func_t function) {
+  unsigned pinValue = 0;
+  if (pin >= 32 && pin != 47) {
     return;
-  return;
+  }
+  switch (function) {
+  case GPIO_FUNC_INPUT:
+    pinValue = GPIO_FUNC_INPUT;
+    break;
+  case GPIO_FUNC_OUTPUT:
+    pinValue = GPIO_FUNC_OUTPUT;
+    break;
+  case GPIO_FUNC_ALT0:
+    pinValue = GPIO_FUNC_ALT0;
+    break;
+  case GPIO_FUNC_ALT1:
+    pinValue = GPIO_FUNC_ALT1;
+    break;
+  case GPIO_FUNC_ALT2:
+    pinValue = GPIO_FUNC_ALT2;
+    break;
+  case GPIO_FUNC_ALT3:
+    pinValue = GPIO_FUNC_ALT3;
+    break;
+  case GPIO_FUNC_ALT4:
+    pinValue = GPIO_FUNC_ALT4;
+    break;
+  case GPIO_FUNC_ALT5:
+    pinValue = GPIO_FUNC_ALT5;
+    break;
+  default:
+    // error function value
+    return;
+  }
   int primaryPinNumber = pin / 10;
   int secondaryPinNumber = pin % 10;
   unsigned *pinAddr = (unsigned *)GPIO_BASE;
   pinAddr += primaryPinNumber;
   unsigned value = get32(pinAddr);
-  unsigned mask = 0x00000007 << (secondaryPinNumber * 3);
+  unsigned mask = 0x00000007 << (secondaryPinNumber * 3); // 111
   value &= ~mask;
-  value |= 0x00000001 << (secondaryPinNumber * 3);
+  value |= pinValue << (secondaryPinNumber * 3);
   put32(pinAddr, value);
+  return;
 }
+
+void gpio_set_output(unsigned pin) { gpio_set_function(pin, GPIO_FUNC_OUTPUT); }
+// set <pin> to input.
+void gpio_set_input(unsigned pin) { gpio_set_function(pin, GPIO_FUNC_INPUT); }
 
 // set GPIO <pin> on.
 void gpio_set_on(unsigned pin) {
@@ -60,12 +96,9 @@ void gpio_set_on(unsigned pin) {
     gpioOffset = 8;
     pinOffset = pin - 32; // pin 32 is pin 0 for example
   }
+  // unsigned *pinAddr = (unsigned *)gpio_set0;
   unsigned *pinAddr = (unsigned *)GPIO_BASE;
   pinAddr += gpioOffset;
-  // unsigned value = get32(pinAddr);
-  // unsigned mask = 1 << pinOffset;
-  // value &= ~mask;
-  // value |= mask;
   put32(pinAddr, 1 << pinOffset);
 }
 
@@ -81,10 +114,6 @@ void gpio_set_off(unsigned pin) {
   }
   unsigned *pinAddr = (unsigned *)GPIO_BASE;
   pinAddr += gpioOffset;
-  // unsigned value = get32(pinAddr);
-  // unsigned mask = 1 << pinOffset;
-  // value &= ~mask;
-  // value |= 1 << pinOffset;
   put32(pinAddr, 1 << pinOffset);
 }
 
@@ -100,28 +129,15 @@ void gpio_write(unsigned pin, unsigned v) {
 // Part 2: implement gpio_set_input and gpio_read
 //
 
-// set <pin> to input.
-void gpio_set_input(unsigned pin) {
-  if (pin >= 32 && pin != 47)
-    return;
-  int primaryPinNumber = pin / 10;
-  int secondaryPinNumber = pin % 10;
-  unsigned *pinAddr = (unsigned *)GPIO_BASE;
-  pinAddr += primaryPinNumber;
-  unsigned value = get32(pinAddr);
-  unsigned mask = 0x00000007 << (secondaryPinNumber * 3);
-  value &= ~mask;
-  // value |= 0x00000000 << (secondaryPinNumber * 3);
-  put32(pinAddr, value);
-}
-
 // return the value of <pin>
 int gpio_read(unsigned pin) {
+  if (pin >= 32 && pin != 47)
+    return -1;
   unsigned pinOffset = pin; // 0-31 is just pin
   unsigned gpioOffset = 13; // 0-31
   if (pin > 31) {
     gpioOffset = 14;
-    pinOffset = pin - 31; // pin 32 is pin 0 for example
+    pinOffset = pin - 32; // pin 32 is pin 0 for example
   }
   unsigned *pinAddr = (unsigned *)GPIO_BASE;
   pinAddr += gpioOffset;
@@ -129,7 +145,7 @@ int gpio_read(unsigned pin) {
   unsigned mask = 1 << pinOffset;
   value &= mask;
   if (value > 0) {
-    return 1;
+    return DEV_VAL32(1);
   }
-  return 0;
+  return DEV_VAL32(0);
 }
