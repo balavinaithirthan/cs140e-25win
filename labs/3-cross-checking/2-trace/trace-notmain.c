@@ -4,6 +4,4 @@
 void __wrap_notmain(void);
 void __real_notmain(void);
 
-void __wrap_notmain(void) {
-    // implement this function!
-}
+void __wrap_notmain(void) { __real_notmain(); }

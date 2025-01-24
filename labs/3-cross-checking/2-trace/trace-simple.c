@@ -25,6 +25,11 @@ unsigned __real_GET32(unsigned addr);
 void __wrap_PUT32(unsigned addr, unsigned val);
 void __real_PUT32(unsigned addr, unsigned val);
 
+unsigned __wrap_get32(unsigned addr);
+unsigned __real_get32(unsigned addr);
+void __wrap_put32(unsigned addr, unsigned val);
+void __real_put32(unsigned addr, unsigned val);
+
 // simple state machine to track what set of options we're called with.
 enum {
   TRACE_OFF = 0,
@@ -54,25 +59,36 @@ void trace_stop(void) {
 
 // call these to emit so everyone can compare!
 static void emit_put32(uint32_t addr, uint32_t val) {
+  state = TRACE_OFF;
   printk("TRACE:PUT32(%x)=%x\n", addr, val);
+  state = TRACE_ON;
 }
 static void emit_get32(uint32_t addr, uint32_t val) {
+  state = TRACE_OFF;
   printk("TRACE:GET32(%x)=%x\n", addr, val);
+  state = TRACE_ON;
 }
 
 // NOTE: you will also have to implement wrappers for get32 and
 // put32.
-
-// the linker will change all calls to GET32 to call __wrap_GET32
 void __wrap_PUT32(unsigned addr, unsigned val) {
-  emit_put32(addr, val);
-  __real_PUT32(addr, val);
+  if (state == TRACE_ON) {
+    emit_put32(addr, val);
+  }
+  __real_put32(addr, val);
 }
 
 // the linker will change all calls to GET32 to call __wrap_GET32
 unsigned __wrap_GET32(unsigned addr) {
-  // implement this function!
-  unsigned v = __real_GET32(addr);
-  emit_get32(addr, v);
+  unsigned v = __real_get32(addr);
+  if (state == TRACE_ON) {
+    emit_get32(addr, v);
+  }
   return v;
 }
+
+// the linker will change all calls to GET32 to call __wrap_GET32
+void __wrap_put32(unsigned addr, unsigned val) { __wrap_PUT32(addr, val); }
+
+// the linker will change all calls to GET32 to call __wrap_GET32
+unsigned __wrap_get32(unsigned addr) { return __wrap_GET32(addr); }
