@@ -8,7 +8,7 @@
  *
  * See rpi.h in this directory for the definitions.
  */
-#include "/Users/balavinaithirthan/Main/CS/cs140e-25win/libpi/include/gpio.h"
+#include "gpio.h"
 #include "rpi.h"
 #include <stdio.h>
 
