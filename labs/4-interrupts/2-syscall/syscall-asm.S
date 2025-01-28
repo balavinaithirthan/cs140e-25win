@@ -31,4 +31,14 @@ MK_FN(syscall_illegal)
 @
 @ does not return
 MK_FN(run_user_code_asm)
-    asm_not_implemented()
+    @ user mode rn
+    @SRS
+    @push {r0-r11}
+    CPS #0b10000 @user mode
+    @prefetch_flush(r0) @ get function addr, TODO: why does this prefetch fuck it up
+    prefetch_flush(r2) @ get stack addr
+    mov sp, r1 
+    mov pc, r0
+    @blx r0
+    @pop {r0-r11}
+    bl clean_reboot @ what is this

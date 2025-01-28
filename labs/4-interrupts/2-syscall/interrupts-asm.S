@@ -1,6 +1,41 @@
 /* Assembly code for interrupt handling.  */
 #include "rpi-asm.h"
 
+.globl _interrupt_table2
+.globl _interrupt_table_end2
+_interrupt_table2:
+  @ Q: why can we copy these ldr jumps and have
+  @ them work the same?
+  ldr pc, _reset_asm2
+  ldr pc, _undefined_instruction_asm2 @ defined the memory address
+  ldr pc, _software_interrupt_asm2
+  ldr pc, _prefetch_abort_asm2
+  ldr pc, _data_abort_asm2
+  ldr pc, _reset_asm2
+  ldr pc, _interrupt_asm2
+fast_interrupt_asm2:
+  sub   lr, lr, #4 @First instr of FIQ handler
+  push  {lr}
+  push  {r0-r12}
+  mov   r0, lr              @ Pass old pc
+  bl    fast_interrupt_vector    @ C function
+  pop   {r0-r12}
+  ldm   sp!, {pc}^
+
+_reset_asm2:                   .word reset_asm @ defines what to do at the memory addr
+_undefined_instruction_asm2:   .word undefined_instruction_asm
+_software_interrupt_asm2:      .word software_interrupt_asm
+_prefetch_abort_asm2:          .word prefetch_abort_asm
+_data_abort_asm2:              .word data_abort_asm
+_interrupt_asm2:               .word interrupt_asm
+_interrupt_table_end2:   @ end of the table.
+
+user_defined_software_interrupt_asm:
+    mov r0, r0
+
+@TODO: why do I need this new table
+
+
 @ the interrupt table that we copy to 0x0.
 @   - start = <_interrupt_table>
 @   - end = <_interrupt_table_end>
@@ -48,14 +83,14 @@ interrupt_asm:
   @   for exception stacks today.  we don't do recursive
   @   exception/interupts so one stack is enough.
   mov sp, #INT_STACK_ADDR   
-  sub   lr, lr, #4
+  sub   lr, lr, #4 @ TODO: WHY???
 
   push  {r0-r12,lr}         @ XXX: pushing too many 
                             @ registers: only need caller
                             @ saved.
 
   mov   r0, lr              @ Pass old pc as arg 0
-  bl    interrupt_vector    @ C function: expects C 
+  bl    syscall_vector    @ C function: expects C 
                             @ calling conventions.
 
   pop   {r0-r12,lr} 	    @ pop integer registers
@@ -83,12 +118,20 @@ software_interrupt_asm:
     @     parameter to <syscall_vector>)
     @   4 mov the pointer to the syscall inst into r0
     @     (so its the first parameter to <syscall_vector>)
-    @   5 call ,syscall_vector>
+    @   5 call <syscall_vector>
     @   6 restore regs: must be identical to what got pushed 
     @     at step (1)
     @   - return from the exception (look at interrupt_asm)
-    asm_not_implemented()
+    @push {r0-r3, lr}
+    push {r4-r11, lr}
+    sub  lr, lr, #4
+    mov  r1, r0
+    mov  r0, lr 
+    bl   syscall_vector
+    pop {r4-r11, lr}
+    @pop  {r0-r3, lr}
     movs pc, lr
+
 
 @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 @ currently we don't use any of these, so just panic and
@@ -132,3 +175,4 @@ get_super_lr:
     mov r0, lr
     msr cpsr_c, r1
     bx lr
+

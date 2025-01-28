@@ -8,7 +8,6 @@
 #include "rpi.h"
 #include "rpi-interrupts.h"
 
-
 // in syscall-asm.S
 void run_user_code_asm(void (*fn)(void), void *stack);
 
@@ -20,6 +19,8 @@ void run_user_code(void (*fn)(void), void *stack) {
 
     // you have to implement <syscall-asm.S:run_user_code_asm>
     // will call <user_fn> with stack pointer <sp>
+    printk("stack addreess is %p\n", stack);
+    printk("function address is %p\n", fn);
     run_user_code_asm(fn, stack);
     not_reached();
 }
@@ -30,6 +31,18 @@ static inline uint32_t cpsr_get(void) {
     uint32_t cpsr;
     asm volatile("mrs %0,cpsr" : "=r"(cpsr));
     return cpsr;
+}
+
+static inline uint32_t spsr_get(void) {
+    uint32_t spsr;
+    asm volatile("mrs %0,spsr" : "=r"(spsr));
+    return spsr;
+}
+
+static inline void stack_get(void) {
+    uint32_t sp;
+    asm volatile ("mov %0, sp" : "=r"(sp)); 
+    printk("current stackptr = %x\n", sp);
 }
 
 enum { N = 1024 * 64 };
@@ -43,8 +56,9 @@ static uint64_t stack[N];
 // routine.
 void user_fn(void) {
     uint64_t var;
-
+    printk("address of var is %p\n", &var);
     trace("checking that stack got switched\n");
+    stack_get();
     assert(&var >= &stack[0]);
     assert(&var < &stack[N]);
 
@@ -52,7 +66,7 @@ void user_fn(void) {
     // use <cpsr_get()> above to get the current mode and check that its
     // at user level.
     unsigned mode = 0;
-    todo("check that the current mode is USER_LEVEL");
+    mode = cpsr_get() & 0x1F;
 
 
     if(mode != USER_MODE)
@@ -78,10 +92,13 @@ void user_fn(void) {
 //      can see the encoding on a3-29:  lower 24 bits hold the encoding.
 int syscall_vector(unsigned pc, uint32_t r0) {
     uint32_t inst, sys_num, mode;
-
+    inst=*(unsigned *)pc;
+    sys_num = inst & 0x00FFFFFF;
+ 
     // make a spsr_get() using cpsr_get() as an example.
     // extract the mode bits and store in <mode>
-    todo("get <spsr> and check that mode bits = USER level\n");
+    //todo("get <spsr> and check that mode bits = USER level\n");
+    mode = spsr_get() & 0x1F;
 
     // do not change this code!
     if(mode != USER_MODE)
@@ -103,18 +120,23 @@ int syscall_vector(unsigned pc, uint32_t r0) {
     }
 }
 
+
+
 void notmain() {
     // define a new interrupt vector table, and pass it to 
     // rpi-interrupts.h:interrupt_init_v
     // NOTE: make sure you set the stack pointer.
-    todo("use rpi-interrupts.h:<interrupt_init_v> (in this dir) "
-         "to install a interrupt vector with a different swi handler");
+    // todo("use rpi-interrupts.h:<interrupt_init_v> (in this dir) "
+    //      "to install a interrupt vector with a different swi handler");
+    extern uint32_t _interrupt_table2[];
+    extern uint32_t _interrupt_table_end2[];
+    interrupt_init_v(_interrupt_table2, _interrupt_table_end2);
 
     // use the <stack> array above.  note: stack grows down.
-    todo("set <sp> to a reasonable stack address in <stack>");
-    uint64_t *sp = 0;
+    uint64_t *sp = (uint64_t*)((char*)stack + ((N-1) * 8));
 
     output("calling user_fn with stack=%p\n", sp);
     run_user_code(user_fn, sp); 
+    printk("hfemwipfpowfopewfopewfopewfopwekfopewpkoewkfopwekfpoi");
     not_reached();
 }

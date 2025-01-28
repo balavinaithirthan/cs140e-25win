@@ -20,11 +20,11 @@ void interrupt_vector(unsigned pc) {
 // pc should point to the system call instruction.
 //      can see the encoding on a3-29:  lower 24 bits hold the encoding.
 // r0 = the first argument passed to the system call.
-int syscall_vector(unsigned pc, uint32_t r0) {
-    uint32_t inst=0, sys_num=0;
-
+int syscall_vector(unsigned pc, uint32_t r0) { // TODO: very confused by r0 and what it means
+    uint32_t inst=*(unsigned *)pc; // address of the swi instruction, need to dereference it, which means treat is as a reference to word and then dereference it to get the swi instruction itself (4 bytes)
+    uint32_t sys_num = inst & 0x00FFFFFF;
     // figure out the instruction and the system call number.
-    unimplemented();
+
     trace("inst=%b, sys_num=%d\n", inst, sys_num);
 
     switch(sys_num) {
