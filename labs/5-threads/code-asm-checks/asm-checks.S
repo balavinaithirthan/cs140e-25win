@@ -15,7 +15,11 @@
 #
 # NOTE: don't trash the stack pointer <sp>!
 MK_FN(push_one)
-    asm_todo("implement this!")
+    mov r3, sp @store temp stack pointer
+    mov sp, r0
+    push {r1}
+    mov r0, sp
+    mov sp, r3 @ restore original stack pointer TODO clarify
     bx lr
 
 
@@ -29,7 +33,12 @@ MK_FN(push_one)
 #
 # NOTE: don't trash the stack pointer <sp>!
 MK_FN(push_two)
-    bx lr
+    mov r3, sp @store temp stack pointer
+    mov sp, r0
+    push {r1, r2}
+    mov r0, sp
+    mov sp, r3 @ restore original stack pointer TODO clarify
+    bx lr 
 
 
 #######################################################
@@ -57,6 +66,8 @@ MK_FN(write_regs_to_stack)
     @ caller (e.g., any callee-saved regs) and also
     @ which caller it was (lr is trashed) so we cannot
     @ return from <write_regs_to_stack>
+    @ ldr r0, [r0]
+    mov sp, r0 // TODO: why double pointer this??
     mov r4, #4
     mov r5, #5
     mov r6, #6
@@ -66,6 +77,10 @@ MK_FN(write_regs_to_stack)
     mov r10, #10
     mov r11, #11
     mov lr, #14
+    @ push {r4, r5, r6, r7, r8, r9, r10, r11, lr}
+    @ push {r4}
+    @ mov r0, sp
+    b after_writing_regs 
 
     @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
     @ 1. push {all the callee + lr} (this is the save
