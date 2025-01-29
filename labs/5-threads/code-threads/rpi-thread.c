@@ -210,7 +210,7 @@ void rpi_thread_start(void) {
         scheduler_thread = th_alloc();
         //trace("queue length is %u, \n",Q_nelem(&runq));
         cur_thread = Q_pop(&runq);
-        trace("in thread [%p], tid=%d with x=%d\n", cur_thread, cur_thread->tid, *(uintptr_t *)cur_thread->stack[R5_OFFSET]);
+        // trace("in thread [%p], tid=%d with x=%d\n", cur_thread, cur_thread->tid, *(uintptr_t *)cur_thread->stack[R5_OFFSET]);
         rpi_cswitch(&scheduler_thread->saved_sp, cur_thread->saved_sp);
     }
     // while (!Q_empty(&runq)) {
