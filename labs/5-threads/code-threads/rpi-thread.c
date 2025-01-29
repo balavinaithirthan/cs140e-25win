@@ -92,14 +92,29 @@ enum {
     LR_OFFSET = 8
 };
 
+// enum {
+//     R4_OFFSET = 8,
+//     R5_OFFSET = 7,
+//     R6_OFFSET = 6,
+//     R7_OFFSET = 5,
+//     R8_OFFSET = 4,
+//     R9_OFFSET = 3,
+//     R10_OFFSET = 2,
+//     R11_OFFSET = 1,
+//     R14_OFFSET = 0,
+//     LR_OFFSET = 0
+// };
+
 // return pointer to the current thread.  
 rpi_thread_t *rpi_cur_thread(void) {
+    //printk("current thread is %d \n", cur_thread->tid);
     assert(cur_thread);
     RZ_CHECK();
     return cur_thread;
 }
 
 // create a new thread.
+
 rpi_thread_t *rpi_fork(void (*code)(void *arg), void *arg) {
     RZ_CHECK();
     rpi_thread_t *t = th_alloc();
@@ -120,8 +135,17 @@ rpi_thread_t *rpi_fork(void (*code)(void *arg), void *arg) {
      * - see <code-asm-checks/5-write-regs.c> for how to 
      *   coordinate offsets b/n asm and C code.
      */
-    todo("initialize thread stack");
+    t->saved_sp = t->stack + THREAD_MAXSTACK - 9;
 
+    t->saved_sp[LR_OFFSET] = (uintptr_t)&rpi_init_trampoline;
+    t->saved_sp[R4_OFFSET] = (uintptr_t) code;
+    t->saved_sp[R5_OFFSET] = (uintptr_t)arg;
+
+    // printk("stack pointer: %p\n", t->saved_sp);
+    // assert(t->stack <= t->saved_sp && t->saved_sp <= &t->stack[THREAD_MAXSTACK]);
+    /////
+    t->fn = code;
+    t->arg = arg;
     // should check that <t->saved_sp> points within the 
     // thread stack.
     th_trace("rpi_fork: tid=%d, code=[%p], arg=[%x], saved_sp=[%p]\n",
@@ -140,11 +164,15 @@ void rpi_exit(int exitcode) {
     RZ_CHECK();
 
     // if you switch back to the scheduler thread:
-    //      th_trace("done running threads, back to scheduler\n");
-    todo("implement rpi_exit");
-
+    th_trace("done running threads, back to scheduler\n");
+    return;
+    // if (Q_empty(&runq)) {
+    //     rpi_cswitch(cur_thread, scheduler_thread);
+    // }
+    return;// TODO: is this correct
     // should never return.
     not_reached();
+    
 }
 
 // yield the current thread.
@@ -178,10 +206,22 @@ void rpi_thread_start(void) {
         goto end;
 
     // setup scheduler thread block.
-    if(!scheduler_thread)
+    if(!scheduler_thread) {
         scheduler_thread = th_alloc();
+        //trace("queue length is %u, \n",Q_nelem(&runq));
+        cur_thread = Q_pop(&runq);
+        trace("in thread [%p], tid=%d with x=%d\n", cur_thread, cur_thread->tid, *(uintptr_t *)cur_thread->stack[R5_OFFSET]);
+        rpi_cswitch(&scheduler_thread->saved_sp, cur_thread->saved_sp);
+    }
+    // while (!Q_empty(&runq)) {
+    //     cur_thread = Q_pop(&runq);
+    //     rpi_cswitch(int **old_sp_save, const int *new_sp)
+    // }
 
-    todo("implement the rest of rpi_thread_start");
+    // rpi_cswitch(&cur_thread->saved_sp, scheduler_thread->saved_sp);
+
+    rpi_exit(0);
+
 
 end:
     RZ_CHECK();
