@@ -63,6 +63,7 @@ static rpi_thread_t *th_alloc(void) {
 #   define is_aligned(_p,_n) (((unsigned)(_p))%(_n) == 0)
     demand(is_aligned(&t->stack[0],8), stack must be 8-byte aligned!);
     t->tid = tid++;
+    // th_trace("tid being increased \n");
     return t;
 }
 
@@ -164,13 +165,17 @@ void rpi_exit(int exitcode) {
     RZ_CHECK();
 
     // if you switch back to the scheduler thread:
-    th_trace("done running threads, back to scheduler\n");
-    return;
-    // if (Q_empty(&runq)) {
-    //     rpi_cswitch(cur_thread, scheduler_thread);
-    // }
-    return;// TODO: is this correct
-    // should never return.
+    if (Q_empty(&runq)) {
+        th_trace("done running threads, back to scheduler\n");
+        rpi_cswitch(&cur_thread->saved_sp, scheduler_thread->saved_sp);
+    } else {
+        rpi_thread_t* old_thread = cur_thread;
+        th_free(old_thread);
+        cur_thread = Q_pop(&runq);
+        rpi_cswitch(&old_thread->saved_sp, cur_thread->saved_sp);
+    }
+
+    
     not_reached();
     
 }
@@ -186,8 +191,14 @@ void rpi_yield(void) {
     RZ_CHECK();
     // NOTE: if you switch to another thread: print the statement:
     //     th_trace("switching from tid=%d to tid=%d\n", old->tid, t->tid);
-
-    todo("implement the rest of rpi_yield");
+    if (Q_empty(&runq)) {
+        return;
+    } else {
+        Q_push(&runq, cur_thread);
+        rpi_thread_t* new_thread = Q_pop(&runq);
+        th_trace("switching from tid=%d to tid=%d\n", cur_thread->tid, new_thread->tid);
+        rpi_cswitch(&cur_thread->saved_sp, new_thread->saved_sp);
+    }
 }
 
 /*
@@ -202,29 +213,30 @@ void rpi_thread_start(void) {
     th_trace("starting threads!\n");
 
     // no other runnable thread: return.
+    //th_trace("Is the queue is empty: %d\n", Q_empty(&runq));
     if(Q_empty(&runq))
         goto end;
 
     // setup scheduler thread block.
     if(!scheduler_thread) {
         scheduler_thread = th_alloc();
-        //trace("queue length is %u, \n",Q_nelem(&runq));
-        cur_thread = Q_pop(&runq);
-        // trace("in thread [%p], tid=%d with x=%d\n", cur_thread, cur_thread->tid, *(uintptr_t *)cur_thread->stack[R5_OFFSET]);
-        rpi_cswitch(&scheduler_thread->saved_sp, cur_thread->saved_sp);
+        // HOW DOES IT KNOW TO GO TO END??
+        // scheduler_thread->saved_sp = scheduler_thread->stack + THREAD_MAXSTACK - 9;
+        // scheduler_thread->saved_sp[LR_OFFSET] = (uintptr_t) &&end;
+        // cur_thread = Q_pop(&runq);
+        // unsigned ans;
+        // asm volatile ("mov lr, %0" :: "r" (&&end));
+        // asm volatile ("mov %0, lr" : "=r" (ans));
+        // rpi_cswitch(&scheduler_thread->saved_sp, cur_thread->saved_sp);
     }
-    // while (!Q_empty(&runq)) {
-    //     cur_thread = Q_pop(&runq);
-    //     rpi_cswitch(int **old_sp_save, const int *new_sp)
-    // }
-
-    // rpi_cswitch(&cur_thread->saved_sp, scheduler_thread->saved_sp);
-
-    rpi_exit(0);
+    cur_thread = Q_pop(&runq);
+    rpi_cswitch(&scheduler_thread->saved_sp, cur_thread->saved_sp);
 
 
 end:
     RZ_CHECK();
+    // th_trace("thread id is %d\n", tid);
+    //scheduler_thread = NULL;
     // if not more threads should print:
     th_trace("done with all threads, returning\n");
 }
