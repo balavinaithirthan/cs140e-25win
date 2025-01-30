@@ -194,10 +194,15 @@ void rpi_yield(void) {
     if (Q_empty(&runq)) {
         return;
     } else {
-        Q_push(&runq, cur_thread);
-        rpi_thread_t* new_thread = Q_pop(&runq);
-        th_trace("switching from tid=%d to tid=%d\n", cur_thread->tid, new_thread->tid);
-        rpi_cswitch(&cur_thread->saved_sp, new_thread->saved_sp);
+        // th_trace("address of cur thread is %p\n", cur_thread);
+        Q_append(&runq, cur_thread);
+        rpi_thread_t* old_thread = cur_thread;
+        cur_thread = Q_pop(&runq);
+        // th_trace("the queue has %d threads\n", Q_nelem(&runq));
+        // th_trace("address of cur thread is %p\n", cur_thread);
+        // th_trace("address of old thread is %p\n", old_thread);
+        th_trace("switching from tid=%d to tid=%d\n", old_thread->tid, cur_thread->tid);
+        rpi_cswitch(&old_thread->saved_sp, cur_thread->saved_sp);
     }
 }
 
