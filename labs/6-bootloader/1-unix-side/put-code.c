@@ -213,9 +213,13 @@ void simple_boot(int fd, uint32_t boot_addr, const uint8_t *buf, unsigned n) {
 
   // 1. reply to the GET_PROG_INFO
   trace_put32(fd, PUT_PROG_INFO);
+  // trace("put prog info\n");
   trace_put32(fd, ARMBASE);
+  // trace("armbase\n");
   trace_put32(fd, n);
+  // trace("nbytes\n");
   trace_put32(fd, crc32(buf, n));
+  // trace("crc\n");
 
   // 2. drain any extra GET_PROG_INFOS
   while ((op = get_op(fd)) == GET_PROG_INFO) // GET_CODE
@@ -226,7 +230,7 @@ void simple_boot(int fd, uint32_t boot_addr, const uint8_t *buf, unsigned n) {
 
   // 3. check that we received a GET_CODE
   //   todo("check that we received a GET_CODE");
-  uint32_t deviceCRC = trace_get32(fd);
+  uint32_t deviceCRC = get_op(fd);
   boot_check(fd, "The code checksums don't match", crc32(buf, n), deviceCRC);
 
   //   4. handle it: send a PUT_CODE + the code.

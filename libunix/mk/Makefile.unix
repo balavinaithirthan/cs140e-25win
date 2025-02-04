@@ -4,7 +4,7 @@
 #  can define:
 #   - <COMMON_SRC>: shared source across all programs.
 #   - <LIBS>: additional libraries.
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --no-print-directory -Wno-nullability-completeness
 
 ifndef PROGS
     $(error "<PROGS> is not defined!")
@@ -64,7 +64,7 @@ DEPFLAGS =  -MT $@ -MMD -MP -MF $(BUILD_DIR)/$*.d
 OPT_LEVEL ?= -Og
 CC=gcc
 
-CFLAGS += $(OPT_LEVEL) -Wall -g -std=gnu99  -Werror -Wno-unused-function -Wno-unused-variable -DRPI_UNIX
+CFLAGS += $(OPT_LEVEL) -Wall -g -std=gnu99  -Wno-nullability-completeness -Werror -Wno-unused-function -Wno-unused-variable -DRPI_UNIX
 
 # added the include path for libpi-fake
 DEPS += $(MAKEFILE_LIST)

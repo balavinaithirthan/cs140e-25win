@@ -3,7 +3,7 @@ CC=gcc
 
 # where we put objects.
 BUILD_DIR ?= ./objs
-MAKEFLAGS += --no-print-directory
+MAKEFLAGS += --no-print-directory -Wno-nullability-completeness
 
 ifndef BUILD_DIR
 $(error "BUILD_DIR empty")
@@ -26,7 +26,7 @@ endif
 DEPS := $(MAKEFILE_LIST)
 
 # should probably let them override optimizations.
-CFLAGS += $(INC) -Og -Wall -Wno-unused-function -Wno-unused-variable -DRPI_UNIX
+CFLAGS += $(INC) -Og -Wno-nullability-completeness -Wall -Wno-unused-function -Wno-unused-variable -DRPI_UNIX
 DEPFLAGS =  -MT $@ -MMD -MP -MF $(BUILD_DIR)/$*.d
 
 ##################################################################
