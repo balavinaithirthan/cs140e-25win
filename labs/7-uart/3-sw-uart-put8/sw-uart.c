@@ -21,11 +21,17 @@
 void sw_uart_put8(sw_uart_t *uart, uint8_t b) {
     // use local variables to minimize any loads or stores
     int tx = uart->tx;
-    uint32_t n = uart->cycle_per_bit,
-             u = n,
-             s = cycle_cnt_read();
-
-    todo("implement this code\n");
+    // uint32_t n = uart->cycle_per_bit,
+    //          u = n,
+    uint32_t s = cycle_cnt_read();
+    gpio_write(tx, 0);
+    while(cycle_cnt_read() < s + uart->cycle_per_bit);
+    for (int i = 0; i < 8; i++) {   
+        gpio_write(tx, (b >> i) & 1);
+        while(cycle_cnt_read() < s + (i+2) * uart->cycle_per_bit);
+    }
+    gpio_write(tx, 1);
+    while(cycle_cnt_read() < s + (10 * uart->cycle_per_bit));
 }
 
 // optional: do receive.
@@ -60,9 +66,10 @@ sw_uart_t sw_uart_init_helper(unsigned tx, unsigned rx,
         panic("too much diff: cyc_per_bit = %d * baud = %d\n", 
             cyc_per_bit, cyc_per_bit * baud);
 
-    // make sure you set TX to its correct default!
-    todo("setup rx,tx and initial state of tx pin.");
-
+    gpio_set_output(tx);
+    gpio_set_input(rx);
+    gpio_write(tx, 1);
+    delay_ms(100);
     return (sw_uart_t) { 
             .tx = tx, 
             .rx = rx, 
