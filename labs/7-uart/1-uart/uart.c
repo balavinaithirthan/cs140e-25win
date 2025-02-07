@@ -32,7 +32,7 @@
 
 // change "1" to "0" if you want to comment out
 // the entire block.
-#if 1 
+#if 0
 //*****************************************************
 // We provide a bit-banged version of UART for debugging
 // your UART code.  delete when done!
@@ -113,29 +113,14 @@ uint32_t generate_mask(uint32_t start, uint32_t end) {
     return ((1U << (end - start)) - 1) << start;
 }
 
-uint32_t read_modify_write(uint32_t addr, uint32_t value, uint32_t bitNumberStart, uint32_t bitNumberEnd) {
+void read_modify_write(uint32_t addr, uint32_t value, uint32_t bitNumberStart, uint32_t bitNumberEnd) {
     uint32_t originalValue = GET32(addr);
     uint32_t bitMask = generate_mask(bitNumberStart, bitNumberEnd);
     originalValue &= ~bitMask;
     originalValue |= value << bitNumberStart;
-    return originalValue;
+    PUT32(addr, originalValue);
 }
 
-
-// void debugger() {
-//     hw_uart_disable();
-//     // use pin 14 for tx, 15 for rx
-//     sw_uart_t u = sw_uart_init(14, 15, 115200);
-//     // print in the most basic way.
-//     sw_uart_put8(&u, 'h');
-//     sw_uart_put8(&u, 'e');
-//     sw_uart_put8(&u, 'l');
-//     sw_uart_put8(&u, 'l');
-//     sw_uart_put8(&u, 'o');
-//     sw_uart_put8(&u, '\n');
-//     sw_uart_put8(&u, '\n');
-//     sw_uart_put8(&u, '\n');
-// }
 //*****************************************************
 // the rest you should implement.
 
@@ -161,9 +146,9 @@ void uart_init(void) {
 
     dev_barrier();
 
-    dev_barrier();
     // while ((GET32(AUXIRQ) & 1) == 1); // miniUART interrupt pending
     read_modify_write(AUXENB, 1, 0, 1); //set miniUART on
+    dev_barrier();
     // read_modify_write(AUX_MU_CNTL_REG, 0, 0, 2); // disable transmit and recv
     PUT32(AUX_MU_CNTL_REG, 0); // disable transmit and recv
 
@@ -195,13 +180,23 @@ void uart_init(void) {
     // delete everything to do w/ sw-uart when done since
     // it trashes your hardware state and the system
     // <putc>.
-    demand(!called_sw_uart_p, 
-        delete all sw-uart uses or hw UART in bad state);
+    //demand(!called_sw_uart_p, 
+    //    delete all sw-uart uses or hw UART in bad state);
 }
 
 // disable the uart: make sure all bytes have been proc
-// 
 void uart_disable(void) {
+    // uint32_t transmit_recv_idle = 0;
+    uint32_t transmit_done = 0;
+    while (1) {
+        transmit_done = GET32(AUX_MU_STAT_REG) & (1 << 9);
+        // transmit_recv_idle = GET32(AUX_MU_STAT_REG) & (3 << 2);
+        //transmit_recv_idle >> 2 && transmit_recv_idle >> 3 && 
+        // transmit_recv_idle = GET32(AUX_MU_LSR_REG) &
+        if (transmit_done) {
+            break;
+        }
+    }
     read_modify_write(AUX_MU_CNTL_REG, 0, 0, 2); // disable transmit and recv
     read_modify_write(AUXENB, 0, 0, 1); //set miniUART off
 }
@@ -255,7 +250,12 @@ int uart_get8_async(void) {
 //  - 1 if TX FIFO empty AND idle.
 //  - 0 if not empty.
 int uart_tx_is_empty(void) {
-    todo("must implement\n");
+    int idle = (GET32(AUX_MU_LSR_REG) & (1 << 6));
+    int empty =(GET32(AUX_MU_LSR_REG) & (1 << 5));
+    if (idle && empty) {
+        return 1;
+    } 
+    return 0;
 }
 
 // return only when the TX FIFO is empty AND the
