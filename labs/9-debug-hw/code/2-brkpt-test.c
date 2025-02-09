@@ -53,7 +53,6 @@ static void brkpt_fault(regs_t *r) {
     // increment fault count, disable the fault and jump back.
     n_faults++;
     cp14_bcr0_disable();
-
     assert(!cp14_bcr0_is_enabled());
     // switch back and run the faulting instruction.
     switchto(r);
@@ -90,19 +89,28 @@ void notmain(void) {
 
     // see 13-17 for how to set bits
     uint32_t b = 0;
+    b = bits_set(b, 21, 22, 1); // TODO: what does execution context mean??
+    // breakpoint only occurs when PC goes to IMVA/addr vs watch point is read/write to an addr
+    b = bits_set(b, 20, 20, 0); // disable linking
+    b = bits_set(b, 14, 15, 2); // Breakpoint secure
+    b = bits_set(b, 5, 8, 15); // Byte addr select, make sure 4 bits match
+    // b = bits_set(b, 3, 4, 3); // load/access store
+    b = bits_set(b, 1, 2, 1); // priv for access 
 
     if(!b)
         panic("must set b to the right bits\n");
 
     cp14_bcr0_set(b);
     cp14_bvr0_set((uint32_t)foo);
-    assert(cp14_bcr0_is_enabled());
+    cp14_bcr0_enable();
+    prefetch_flush();
+    assert(cp14_bcr0_is_enabled()); 
 
     output("set breakpoint for addr %p\n", foo);
 
     output("about to call %p: should see a fault!\n", foo);
     foo(0);
-    assert(!cp14_bcr0_is_enabled());
+    assert(!cp14_bcr0_is_enabled()); 
     assert(n_faults == 1);
 
     int n = 10;
