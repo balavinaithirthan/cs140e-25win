@@ -109,14 +109,13 @@ access fields as required
     uint32_t b = 0;
     b = bits_set(b, 20, 20, 0); // disable linking
     b = bits_set(b, 14, 15, 0); // Watchpoint match
-    b = bits_set(b, 5, 8, 0); // Byte addr select
+    b = bits_set(b, 5, 8, 15); // Byte addr select, make sure 4 bits match
     b = bits_set(b, 3, 4, 3); // load/access store
     b = bits_set(b, 1, 2, 3); // priv for access 
     if(!b)
         panic("set b to the right bits for wcr0\n");
 
     cp14_wcr0_set(b);
-    trace("before %u \n", b);
     cp14_wcr0_enable();
     cp14_wvr0_set(null);
     assert(cp14_wcr0_is_enabled());
@@ -146,6 +145,7 @@ access fields as required
     // set up the fault again.
     trace("setting watchpoint for addr %p\n", null);
     cp14_wcr0_set(b);
+    cp14_wcr0_enable();
     cp14_wvr0_set(null);
     assert(cp14_wcr0_is_enabled());
 
