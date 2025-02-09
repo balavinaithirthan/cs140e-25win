@@ -65,6 +65,7 @@ static void watchpt_fault(regs_t *r) {
     switchto(r);
 }
 
+
 void notmain(void) {
     enum { null = 0 };
     // initialize null.
@@ -75,8 +76,11 @@ void notmain(void) {
     full_except_install(0);
     full_except_set_data_abort(watchpt_fault);
 
-    todo("enable the debug coprocessor.");
+    //uint32_t debug_id_macro = 0;
+
+    // check that bits 0..31 of ~0 are 1.
     cp14_enable();
+    assert(cp14_is_enabled());
 
     /* 
      * see: 
@@ -85,7 +89,17 @@ void notmain(void) {
      */
 
 
-
+/*
+Read the WCR.
+2. Clear the WCR[0] enable watchpoint bit in the read word and write it back to the WCR.
+Now the watchpoint is disabled.
+3. Write the DMVA to the WVR register.
+4. Write to the WCR with its fields set as follows:
+• WCR[20] enable linking bit cleared, to indicate that this watchpoint is not to be
+linked
+• WCR byte address select, load/store access, Secure access field, and supervisor
+access fields as required
+• WCR[0] enable watchpoint bit set.*/
     /**************************************************************
      * 1. store test with PUT32.
      */
@@ -93,10 +107,17 @@ void notmain(void) {
     // set watchpoint.
     assert(!cp14_wcr0_is_enabled());
     uint32_t b = 0;
+    b = bits_set(b, 20, 20, 0); // disable linking
+    b = bits_set(b, 14, 15, 0); // Watchpoint match
+    b = bits_set(b, 5, 8, 0); // Byte addr select
+    b = bits_set(b, 3, 4, 3); // load/access store
+    b = bits_set(b, 1, 2, 3); // priv for access 
     if(!b)
         panic("set b to the right bits for wcr0\n");
 
     cp14_wcr0_set(b);
+    trace("before %u \n", b);
+    cp14_wcr0_enable();
     cp14_wvr0_set(null);
     assert(cp14_wcr0_is_enabled());
 
