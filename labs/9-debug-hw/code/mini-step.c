@@ -129,8 +129,16 @@ void mini_step_init(step_handler_t h, void *data) {
     assert(h);
     step_handler_data = data;
     step_handler = h;
+    
+    full_except_install(0);
+    full_except_set_prefetch(mismatch_fault);
 
-    todo("setup the rest: <mismatch_fualt> for exception, cp14");
+    // 2. enable the debug coprocessor.
+    cp14_enable();
+
+    // just started, should not be enabled.
+    assert(!cp14_bcr0_is_enabled());
+
 
     // just started, should not be enabled.
     assert(!cp14_bcr0_is_enabled());

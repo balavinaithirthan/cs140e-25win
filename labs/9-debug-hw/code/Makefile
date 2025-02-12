@@ -26,13 +26,13 @@ START_ASM = staff-start.S
 # these are all the tests.
 PROGS := $(wildcard ./[1234567]-*.c)
 
-PROGS := 2-brkpt-test.c  
-PROGS := 1-watchpt-test.c  
+# PROGS := 2-brkpt-test.c  
+# PROGS := 1-watchpt-test.c  
 
-# simplest: should run out of the box.
-PROGS := 0-example-debug-id.c
-
-
+# # simplest: should run out of the box.
+# PROGS := 0-example-debug-id.c
+# PROGS := 3-mini-watch-byte-access.c
+PROGS := 4-mini-step-diff.c 
 CAN_EMIT=0
 GREP_STR := 'TRACE:\|THREAD:\|ERROR:\|PANIC:' 
 include $(CS140E_2025_PATH)/libpi/mk/Makefile.template-fixed

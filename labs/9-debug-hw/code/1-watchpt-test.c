@@ -31,7 +31,7 @@ static void watchpt_fault(regs_t *r) {
     // the pc value is the next instruction that would run.
     // e.g., a store or a load to a non-pc value expect this
     // to be +4.    if they write to the pc can be anywhere.
-    uint32_t pc = r->regs[15];
+    uint32_t pc = r->regs[15]; // TODO, why not link register
 
     // the actual instruction that caused watchpoint.  pc holds the
     // address of the next instruction.
