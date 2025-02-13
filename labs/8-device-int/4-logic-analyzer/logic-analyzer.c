@@ -30,10 +30,31 @@ void interrupt_vector(unsigned pc) {
     //  - using the circular buffer is pretty slow. should tune this.
     //    easy way is to use a uint32_t array where the counter is volatile.
     unsigned s = cycle_cnt_read();
+    unsigned prevPin = 0;
+
 
     dev_barrier();
-    unimplemented();
+    if (gpio_read(in_pin) == DEV_VAL32(0)) {
+        prevPin = 1;
+    }
+    if (gpio_read(in_pin) == DEV_VAL32(1)) {
+        prevPin = 0;
+    }
+    gpio_event_clear(in_pin);
+
     dev_barrier();
+
+    cq_push32(&uartQ, s);
+    cq_push32(&uartQ, prevPin);
+    
+    dev_barrier();
+
+    gpio_event_clear(in_pin);
+
+    dev_barrier();
+    // prevFalling = n_falling_edge;
+    // prevRising = n_rising_edge;
+
 }
 
 void notmain() {
