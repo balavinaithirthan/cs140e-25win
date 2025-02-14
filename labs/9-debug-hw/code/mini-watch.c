@@ -55,10 +55,10 @@ static void watchpt_fault(regs_t *r) {
     watch_fault_t w;
     if(datafault_from_ld()) {
         // assert(fault_pc == (uint32_t)GET32);
-        w = watch_fault_mk(fault_pc, (uint32_t*)(uintptr_t)cp15_addr_get(), 1, r);
+        w = watch_fault_mk(fault_pc, (uint32_t*)(uintptr_t)cp15_ifar_get(), 1, r);
     } else {
         // assert(fault_pc == (uint32_t)PUT32); // fault should be a put/get32 instruction
-        w = watch_fault_mk(fault_pc, (uint32_t*)(uintptr_t)cp15_addr_get(), 0, r); // addr is now a pointer to a uint_32t and has addr = addr
+        w = watch_fault_mk(fault_pc, (uint32_t*)(uintptr_t)cp15_ifar_get(), 0, r); // addr is now a pointer to a uint_32t and has addr = addr
 
     }
     watchpt_handler(watchpt_data, &w);
