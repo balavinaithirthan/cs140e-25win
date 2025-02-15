@@ -27,15 +27,17 @@ cp_asm_get(VECBASE, p15, 0, c12, c0, 0);
 // return the current value vector base is set to.
 static inline void *vector_base_get(void) {
    uint32_t reg = VECBASE_get();
-   uint32_t addr = bits_get(reg, 5, 31);
-   return (void*)(uintptr_t)addr;
+//    uint32_t addr = bits_get(reg, 5, 31);
+//    return (void*)(uintptr_t)addr;
+return (void*)(uintptr_t)reg;
+
 }
 
 // check that not null and alignment is good.
 static inline int vector_base_chk(void *vector_base) {
     if(!vector_base)
         return 0;
-    if ((((uint32_t)(uintptr_t)vector_base) % 64 )!= 0) // why 256 bit aligned
+    if ((((uint32_t)(uintptr_t)vector_base) % 32 )!= 0) // why 256 bit aligned
         return 0;
     return 1;
 }
@@ -54,7 +56,7 @@ static inline void vector_base_set(void *vec) {
         panic("vector base register already set=%p\n", v);
 
     uint32_t newVal = (uint32_t) (uintptr_t)vec;
-    newVal = bits_set((uint32_t)(uintptr_t)v, 5, 31, newVal);
+    // newVal = bits_set((uint32_t)(uintptr_t)v, 5, 31, newVal); // TODO:why not 5-31??
     VECBASE_set(newVal);
     // double check that what we set is what we have.
     v = vector_base_get();
@@ -73,7 +75,7 @@ vector_base_reset(void *vec) {
     old_vec = vector_base_get();
 
     uint32_t newVal = (uint32_t) (uintptr_t)vec;
-    newVal = bits_set((uint32_t)old_vec, 5, 31, newVal);
+    //newVal = bits_set((uint32_t)old_vec, 5, 31, newVal);
     VECBASE_set(newVal);
     //double check that what we set is what we have.
     assert(vector_base_get() == vec);

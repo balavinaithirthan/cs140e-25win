@@ -20,6 +20,7 @@ static volatile unsigned n_rising_edge, n_falling_edge;
 
 // similar to our timer interrupt vector but for GPIO.
 // can tune significantly!
+// TODO: how can we use this to catch bugs??
 void interrupt_vector(unsigned pc) {
     // 1. compute the cycles since the last event and push32 in the queue
     // 2. push the previous pin value in the circular queue (so if was
@@ -52,9 +53,6 @@ void interrupt_vector(unsigned pc) {
     gpio_event_clear(in_pin);
 
     dev_barrier();
-    // prevFalling = n_falling_edge;
-    // prevRising = n_rising_edge;
-
 }
 
 void notmain() {
