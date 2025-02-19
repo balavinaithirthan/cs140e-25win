@@ -7,6 +7,7 @@
 #include "rpi-constants.h"
 #include "cpsr-util.h"
 #include "breakpoint.h"
+#include <stdint.h>
 
 
 // simple debug macro: can turn it off/on by calling <brk_verbose({0,1})>
@@ -112,7 +113,38 @@ int check(checker_t *c);
 int syscall_invoke_asm(int sysno, ...);
 
 // you will implement this.
-#define sys_lock_try(addr)     syscall_invoke_asm(SYS_TRYLOCK, addr)
+#define sys_lock_try(addr)    sys_lock_try_impl(addr)
+
+#define sys_yield(addr)     sys_yield_imple(addr)
+
+static inline int sys_lock_try_impl(volatile int *l) {
+    // in rpi-inline-asm.h
+    uint32_t cpsr = cpsr_get();
+    
+    // libpi/include/cpsr-util.h
+    if (mode_get(cpsr) == USER_MODE) {
+        return syscall_invoke_asm(SYS_TRYLOCK, l); // Interrupt user to priv mode and run syscall
+        // TODO, how does this syscall logic work
+    } else {
+        // what if multiple threads here, no locking??, think through this
+        if (*l == 1) {
+            // trace("lock is taken %d \n", *l);
+            return 0; // return 1 if lock is taken
+        }
+        // trace("locked now \n");
+        *l = 1;
+        return 1;
+        // trace("hey \n");
+        // uint32_t old_mode = mode_get(cpsr);
+        // mode_set(cpsr, USER_MODE);
+        // int val = syscall_invoke_asm(SYS_TRYLOCK, l);
+        // trace("bye\n");
+        // mode_set(cpsr, old_mode);
+        // trace("bye\n");
+        // return val;
+        // TODO: why does this not work???
+    }
+}
 
 // a do-nothing syscall to test things.
 #define sys_test(x)          syscall_invoke_asm(SYS_TEST, x)

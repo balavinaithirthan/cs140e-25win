@@ -9,7 +9,8 @@
 #include "breakpoint.h"
 #include "full-except.h"
 #include "pi-sys-lock.h"
-#include "switchto.h"
+#include <stdint.h>
+#include <stdio.h>
 
 // used to communicate with the breakpoint handler.
 static volatile checker_t *checker = 0;
@@ -17,6 +18,19 @@ static volatile checker_t *checker = 0;
 int brk_verbose_p = 0;
 
 static void A_terminated(uint32_t ret);
+
+
+// static inline int sys_lock_try(volatile int *l) {
+//     // in rpi-inline-asm.h
+//     uint32_t cpsr = cpsr_get();
+    
+//     // libpi/include/cpsr-util.h
+//     if(mode_get(cpsr) == USER_MODE)
+//         return syscall_invoke_asm(SYS_TRYLOCK, l);
+//     else
+//         // switch to user mode
+//         todo("just call the trylock directly\n");
+// }
 
 
 // invoked from user level: 
@@ -28,11 +42,12 @@ static void A_terminated(uint32_t ret);
 //   - arg2 of the call is in r->reg[3];
 // we don't handle more arguments.
 static int syscall_handler_full(regs_t *r) {
+    // trace("in syscall handler full \n");
     assert(mode_get(cpsr_get()) == SUPER_MODE);
 
     // we store the first syscall argument in r1
     uint32_t arg0 = r->regs[1];
-    uint32_t sys_num = r->regs[0];
+    uint32_t sys_num = r->regs[0]; // load sys call
 
     // pc = address of instruction right after 
     // the system call.
@@ -44,8 +59,8 @@ static int syscall_handler_full(regs_t *r) {
             switchto((void*)arg0);
             panic("not reached\n");
     case SYS_TRYLOCK:
-        panic("not handling yet\n");
-
+        return sys_lock_try_impl((void*)arg0);
+        // return sys_lock_try_impl((void*)arg0); // Return success (1) or failure (0)
     case SYS_TEST:
         printk("running empty syscall with arg=%d\n", arg0);
         return SYS_TEST;
@@ -67,33 +82,41 @@ static void single_step_handler_full(regs_t *r) {
 
     // r0 is in r->regs[0], r1 is in r->regs[1], ...
     uint32_t pc = r->regs[15];
-    uint32_t n = ++checker->inst_count; // ran this many instructions
-    uint32_t toSwitchOn = checker->switch_on_inst_n;
-    // output("single-step handler: inst=%d: A:pc=%x\n", n,pc);
-    // output("single step counter should stop at instruction %d \n", toSwitchOn);
-    
-    brkpt_mismatch_set(pc);
-    if (toSwitchOn == n) {
-        if (checker->B((void*)checker)) {
-            checker->switched_p = 1;
-            // output("B has run to completion \n");
-        } else {
-            output("B has failed!");
-        }
-        brkpt_mismatch_stop();
-    } 
-    // TODO: you'll have to add code to do the switching here.
+    uint32_t cur_instruction = checker->inst_count; // currently running instruction
 
+    // TODO: you'll have to add code to do the switching here.
+    // output("single-step handler: inst=%d: A:pc=%x\n", cur_instruction, pc);
+    // output("single step counter should stop at instruction %d \n", checker->switch_on_inst_n);
+    // output("current instruction count is %d \n", checker->inst_count);
+    // output("the A terminated pc is %p \n", (uint32_t)A_terminated);
     // recall: the weird way single step works: run the instruction 
     // at address <pc>, by setting up a mismatch fault for any other
     // <pc> value.
+    if (checker->switch_on_inst_n == cur_instruction) {
+        if (checker->B((void*)checker)) {
+            checker->switched_p = 1;
+            // output("B has run to completion \n");
+            brkpt_mismatch_stop();
+        } else {
+            // output("B has failed!\n");
+            checker->switch_on_inst_n += 1;
+            brkpt_mismatch_set(pc);
+        }
+    } else {
+        //checker->B((void*)checker); // run B at end, ie there are more instructions than A has
+        brkpt_mismatch_set(pc);
+    }
+    
+    uint32_t n = ++checker->inst_count; // instruction 0 has finished running if count == 1
+
+    // output("single-step handler: inst=%d: A:pc=%x\n", cur_instruction, pc);
+
 
     // switch to back.
-    if (r->regs[REGS_PC]== (uint32_t)A_terminated) {
-        // checker->switched_p = 0;
-        // trace("terminating with a_terminated is %p \n", A_terminated);
+    if (pc == (uint32_t)A_terminated) {
+        // checker->B((void*)checker);
         brkpt_mismatch_stop();
-    } // this seems hella rigid, TODO
+    }// it will enter this before n == instruction
     switchto(r);
 }
 
@@ -103,10 +126,12 @@ static regs_t start_regs;
 // this is called when A() returns: assumes you are at user level.
 // switch back to <start_regs>
 static void A_terminated(uint32_t ret) {
-    // brkpt_mismatch_stop(); // TODO: Why can't I put this here
+    // output("A is finished \n");
+    // brkpt_mismatch_stop(); TODO: undefined_instruction_vector:3:unhandled undefined inst exception: pc=0x90a4
     uint32_t cpsr = mode_get(cpsr_get());
     if(cpsr != USER_MODE)
         panic("should be at USER, at <%s> mode\n", mode_str(cpsr));
+
     // put whatever A() returned into r0 position.
     start_regs.regs[0] = ret;
     sys_switchto(&start_regs);
@@ -114,7 +139,6 @@ static void A_terminated(uint32_t ret) {
 
 // run routine <c->A()> at user level by making a stack,
 // switching into it 
-// TODO: where did check_t store the register values
 static uint32_t run_A_at_userlevel(checker_t *c) {
     // 1. get current cpsr and change mode to USER_MODE.
     // this will preserve any interrupt flags etc.
@@ -153,23 +177,14 @@ static uint32_t run_A_at_userlevel(checker_t *c) {
     // 4. context switch to <r> and save current execution
     // state in <start_regs> [similar to <rpi-thread.c>
     // when we started the threads package.
- 
     switchto_cswitch(&start_regs, &r);
-    // trace("regs pc is %d \n", r.regs[REGS_PC]);
-    // trace("A terminated location is %d \n", A_terminated);
-    // if (r.regs[REGS_PC] == (uint32_t)A_terminated) {
-        // 6. turn off mismatch (single step)
-        // brkpt_mismatch_stop();
-    //     trace("turning off stepping\n");
-    // }
+
     // 5. At this point A() finished execution.   We got 
     // here from A_terminated():switchto(&start_regs)
-    // if (r.regs[REGS_PC] == (uint32_t)A_terminated) {
-        // 6. turn off mismatch (single step)
-        brkpt_mismatch_stop();
-    //     trace("turning off stepping\n");
-    // }
-    
+
+    // 6. turn off mismatch (single step)
+    brkpt_mismatch_stop();
+
     // 7. return back to the checking loop.
     return start_regs.regs[0];
 }
@@ -200,6 +215,7 @@ int check(checker_t *c) {
     // for(int i = 0; i < 10; i++) {
     //     // 1.  initialize the state.
     //     c->init(c);     
+    //     c->inst_count = 0;
     //     // 2. run A()
     //     c->A(c);
     //     // 3. run B(): currently require that can't fail given that 
@@ -214,15 +230,17 @@ int check(checker_t *c) {
     // shows how to run code with single stepping: do the same sequential
     // checking but run A() in single step mode: 
     // should still pass (obviously)
-    // checker = c;
+    checker = c;
+    checker->switch_on_inst_n = -1;
     // for(int i = 0; i < 10; i++) {
-        // c->init(c);
-        // run_A_at_userlevel(c);
-        // if(!c->B(c))
-        //     panic("B should not fail\n");
-        // if(!c->check(c))
-        //     panic("check failed sequentially: code is broken\n");
-    //}
+    //     c->init(c);
+    //     c->inst_count = 0;
+    //     run_A_at_userlevel(c);
+    //     if(!c->B(c))
+    //         panic("B should not fail\n");
+    //     if(!c->check(c))
+    //         panic("check failed sequentially: code is broken\n");
+    // }
 
     //******************************************************************
     // this is what you build: check that A(),B() code works
@@ -250,28 +268,39 @@ int check(checker_t *c) {
     //  }
     // 
     //  return 0 if there were errors.
-    // todo("implement true interleaving!\n");
-    for (int i = 0; ;i++) {
-        // 1.  initialize the state.
-        c->init(c);
-        checker = c;
-        checker->inst_count = 0;
-        // trace("current instr count is %d \n",checker->inst_count);
-        checker->switched_p = 0;
-        c->switch_on_inst_n = i + 1;
-        // 2. Call A(), run to completion.
-        run_A_at_userlevel(c);
-        //trace("A has run to completion \n");
-        if(!c->check(c)) {
-            output("ERROR: check failed when switched on address  instructions\n");
-            return 0;
-        }
-        if (!checker->switched_p) {
+    // output("done with sequential \n");
+    c->interleaving_p = 1;
+    for(int i = 0; ; i++) {
+        // trace("NEW START");
+         c->switched_p = 0;
+         c->init(c);
+         c->ntrials++;
+         c->inst_count = 0;
+         c->switch_on_inst_n = i;
+         run_A_at_userlevel(c);
+        //  trace("switched p is %d \n", c->switched_p);
+        //  single step handler: 
+        //      if this is the ith instruction
+        //          call B().  
+        //          if B() returned 1 (B() could run)
+        //              switched_p = 1;
+        //              finish A() without single stepping
+        //          else
+        //              run A() one more another instruction and try B()
+    
+        //  checker:  when done running A(),B():
+        if(!c->switched_p) {
+            // trace("broke from loop\n");
             break;
         }
-    }
+        if (!c->check(c)) {
+            c->nerrors++;
+            // trace("increasing errors \n");
+            break;
+        }
+     }
+     if (c->nerrors) {
+        return 0;
+     }
     return 1;
 }
-
-
-// we need to keep track of state when implementing a check functions!
