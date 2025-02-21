@@ -71,3 +71,28 @@ MK_FN(switchto_user_asm)
 .weak rfe_c_code
 rfe_c_code:
     asm_not_reached()
+
+
+MK_FN(priv_switchto_user_asm)
+    @ mov r1, r0
+    @ add r1, r0, #64
+    @ orr r1, r1,#(1<<7)    @ disable interrupts.
+    @ msr   cpsr_cxsf, r1
+    @ prefetch_flush(r1)
+
+
+    @ add r0, r0, #60 @ store pc
+    @ str pc, [r0]
+
+    mov r1, r0
+    add r0, r0, #64
+    str r0, [r0]
+    msr cpsr_cxsf, r0 @ switch modes
+    prefetch_flush(r3)
+    mov r0, r1
+
+    ldm r0, {r0-r15}
+
+    @b r15 @ go to pc
+    @rfe pc
+    asm_not_reached();
