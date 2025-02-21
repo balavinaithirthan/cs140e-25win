@@ -74,22 +74,23 @@ rfe_c_code:
 
 
 MK_FN(priv_switchto_user_asm)
-    @ mov r1, r0
-    @ add r1, r0, #64
+    mov r1, r0
+    ldr r1, [r1, #64]
+    //add r1, r1, #1000
     @ orr r1, r1,#(1<<7)    @ disable interrupts.
-    @ msr   cpsr_cxsf, r1
-    @ prefetch_flush(r1)
+    msr cpsr, r1
+    prefetch_flush(r1)
 
 
     @ add r0, r0, #60 @ store pc
     @ str pc, [r0]
 
-    mov r1, r0
-    add r0, r0, #64
-    str r0, [r0]
-    msr cpsr_cxsf, r0 @ switch modes
-    prefetch_flush(r3)
-    mov r0, r1
+    @ mov r1, r0
+    @ add r0, r0, #64
+    @ str r0, [r0]
+    @ msr cpsr_cxsf, r0 @ switch modes
+    @ prefetch_flush(r3)
+    @ mov r0, r1
 
     ldm r0, {r0-r15}
 
