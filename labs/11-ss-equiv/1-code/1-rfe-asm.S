@@ -51,7 +51,7 @@ MK_FN(blk_trampoline_asm)
 @     code)
 @  2. does an rfe to load pc and cpsr
 MK_FN(switchto_user_asm)
-    
+    @ we place all regs array into it's corresponding register 
     @ mov r1, r0
     @ ldm r0, {r14}^ @load user regs into current
     @ ldr r1, r0
@@ -63,7 +63,7 @@ MK_FN(switchto_user_asm)
     add r0, r0, $48
     ldm r0, {r13-r14}^
     sub r0, r0, #52
-    ldr r0, [r0]
+    ldr r0, [r0] @ r0 has the first reg
     rfe sp
     asm_not_reached();
     @ TODO: hella weird issues here, why can't I just ldr r0 - r14
