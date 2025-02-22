@@ -98,7 +98,7 @@ MK_FN(mem_user_sp_lr_set)
 MK_FN(mode_get_lr_sp_asm)
     mrs r3, cpsr @just the mode bits
     msr cpsr_c, r0
-    @ prefetch_flush(r3); TODO: WHY IS THIS STALLING???
+    @prefetch_flush(r3) @ TODO: WHY IS THIS STALLING???
     str sp, [r1] @ remember that registers are temporary values and you need to store it back into memory. you have to move it back!!!!!!!!
     str lr, [r2]
     msr cpsr, r3

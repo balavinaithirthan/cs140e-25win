@@ -32,6 +32,8 @@ int do_syscall(uint32_t regs[17]) {
     trace("in syscall: sysno=%d\n", sysno);
     uint32_t mode = regs[16]; // spsr
     if (mode != USER_MODE) {
+        // trace("register 13 is %p \n", regs[13]);
+        // trace("register 14 is %p \n", regs[14]);
        mode_get_lr_sp_asm(mode, &regs[13], &regs[14]);
     }
     for(unsigned i = 0; i < 17; i++)
@@ -41,7 +43,7 @@ int do_syscall(uint32_t regs[17]) {
     clean_reboot();
 }
 void swi_fn(void);
-void switchto_user_asm(uint32_t regs[17]);
+void priv_switchto_user_asm(uint32_t regs[17]);
 
 void nop_10(void);
 void mov_ident(void);
@@ -63,5 +65,5 @@ void notmain(void) {
     regs[16] = 0x11b;
     trace("about to jump to pc=[%x] with cpsr=%x\n",
             regs[15], regs[16]);
-    switchto_user_asm(regs);
+    priv_switchto_user_asm(regs);
 }
