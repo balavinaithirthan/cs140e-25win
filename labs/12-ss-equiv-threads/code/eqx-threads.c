@@ -24,11 +24,16 @@
 //  - about 1/3 should be new.
 #include "rpi.h"
 #include "eqx-threads.h"
-#include "breakpoint.h"
+// #include "breakpoint.h"
+#include "mini-step.h"
 #include "full-except.h"
 #include "fast-hash32.h"
 #include "eqx-syscalls.h"
 #include "cpsr-util.h"
+#include "/Users/balavinaithirthan/Main/CS/cs140e-25win/libpi/libc/pi-random.h"
+
+volatile int RANDOM_RUN = 0;
+
 
 // check for initialization bugs.
 static int eqx_init_p = 0;
@@ -221,7 +226,9 @@ static __attribute__((noreturn)) void
 eqx_schedule(void) 
 {
     assert(cur_thread);
-
+    if (RANDOM_RUN == pi_random() % 3) {
+        brkpt_run_one_inst(&cur_thread->regs);
+    }
     eqx_th_t *th = eqx_th_pop(&eqx_runq);
     if(th) {
         if(th->verbose_p)
@@ -404,6 +411,7 @@ static int equiv_syscall_handler(regs_t *r) {
 //  - install exception handlers [this is overly
 //    self-important: in a real system there could
 //    be other subsystems that want to do so]
+
 void eqx_init(void) {
     if(eqx_init_p)
         panic("called init twice!\n");

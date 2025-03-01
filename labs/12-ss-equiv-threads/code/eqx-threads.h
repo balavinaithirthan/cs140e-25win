@@ -40,7 +40,6 @@ void eqx_init(void);
 //  - returns xor-hash of all hashes.
 uint32_t eqx_run_threads(void);
 
-
 void eqx_refork(eqx_th_t *th);
 
 eqx_th_t * eqx_fork(void (*fn)(void*), void *arg, uint32_t hash);

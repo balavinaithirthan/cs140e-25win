@@ -3,7 +3,8 @@
 #define __MINI_WATCH_H__
 
 // defines <regs_t>
-#include "armv6-debug-impl.h"
+#include "switchto.h"
+#include "full-except.h"
 
 //*******************************************************
 // these four routines can be used in isolation.  you
@@ -20,8 +21,11 @@ void mismatch_off(void);
 // when you first start, set it to 0 (or any other
 // address that doesn't get executed):
 //     mismatch_pc_set(0);
-uint32_t mismatch_pc_set(uint32_t pc);
+uint32_t brkpt_mismatch_set(uint32_t pc);
 
+void brkpt_mismatch_stop(void);
+
+void brkpt_mismatch_start(void);
 // set a mismatch fault on the pc register in <r>
 // context switch to <r>
 void mismatch_run(regs_t *r);
@@ -58,4 +62,8 @@ void mini_step_init(step_handler_t h, void *data);
 
 // run <fn> in single step mode with <arg> 
 uint32_t mini_step_run(void (*fn)(void*), void *arg);
+
+
+int brkpt_fault_p();
+
 #endif

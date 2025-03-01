@@ -77,15 +77,29 @@ MK_TRAMPOLINE(interrupt,        4, int_vector)
 @    <full-except.c> will patch up if needed.
 @  - the pc in <regs> should point to the instruction that
 @    faulted.
+
+@typedef void (*full_except_t)(regs_t *r);
 prefetch_handler_full:
     @ initially we just forward to staff
-    b staff_prefetch_trampoline_full
-
     mov sp, #INT_STACK_ADDR
     sub   lr, lr, #4
+    sub sp, sp, #16
 
-    asm_todo("save all the regs in a reg_t on the stack") 
-    asm_todo("mov regs into r0, spsr into r1, pc into r2")
+    push {r0-r12}
+
+    add r0, sp, #52 
+    stm r0, {r13, r14}^ @ r[0] = r13, r[1] = r14, 52-56, 56-60
+    
+    str lr, [sp, #60] @ store pc we came from
+    mov r2, lr @ put pc in r2
+
+    mrs r1, spsr @ state of where I came from
+    str r1, [sp, #64] @ put spsr in r1
+
+    mov r0, sp @ move stack pointer which has regs into r0
+
+    @ asm_todo("save all the regs in a reg_t on the stack") 
+    @ asm_todo("mov regs into r0, spsr into r1, pc into r2")
 
     bl prefetch_abort_full_except
     asm_not_reached();
@@ -96,10 +110,28 @@ prefetch_handler_full:
 @  - the pc in <regs> should point to the instruction that
 @    faulted.
 data_abort_full:
+    asm_todo("implfewfewement")
     @ initially we just forward to staff
-    b staff_data_abort_trampoline_full
+    mov sp, #INT_STACK_ADDR
+    sub   lr, lr, #4
+    sub sp, sp, #16
 
-    asm_todo("implement")
+    push {r0-r12}
+
+    add r0, sp, #52 
+    stm r0, {r13, r14}^ @ r[0] = r13, r[1] = r14, 52-56, 56-60
+    
+    str lr, [sp, #60] @ store pc we came from
+    mov r2, lr @ put pc in r2
+
+    mrs r1, spsr @ state of where I came from
+    str r1, [sp, #64] @ put spsr in r1
+
+    mov r0, sp @ move stack pointer which has regs into r0
+
+    @ asm_todo("save all the regs in a reg_t on the stack") 
+    @ asm_todo("mov regs into r0, spsr into r1, pc into r2")
+
     bl data_abort_full_except
     asm_not_reached();
 
@@ -110,10 +142,30 @@ data_abort_full:
 @
 @ the pc in <regs> should point to the instruction after.
 syscall_full:
+    @ b staff_syscall_trampoline_full
     @ initially we just forward to staff
-    b staff_syscall_trampoline_full
+    mov sp, #INT_STACK_ADDR @ TODO why 
+    @ sub lr, lr, #4 @TODO: why did this work
+    sub sp, sp, #16
 
-    asm_todo("implement: do not set sp!")
+    push {r0-r12}
+
+    add r0, sp, #52 
+    stm r0, {r13, r14}^ @ r[0] = r13, r[1] = r14, 52-56, 56-60
+    
+    str lr, [sp, #60] @ store pc we came from
+    mov r2, lr @ put pc in r2
+
+    mrs r1, spsr @ state of where I came from
+    str r1, [sp, #64] @ put spsr in r1
+
+    mov r0, sp @ move stack pointer which has regs into r0
+
+    @ asm_todo("save all the regs in a reg_t on the stack") 
+    @ asm_todo("mov regs into r0, spsr into r1, pc into r2")
+
+
+    @ asm_todo("implement: do not set sp!")
 
     bl syscall_full_except
     asm_not_reached();
