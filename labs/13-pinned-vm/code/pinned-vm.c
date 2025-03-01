@@ -13,6 +13,55 @@
 // (see asm-helpers.h for the cp_asm macro 
 // definition)
 // arm1176.pdf: 3-149
+cp_asm_set_fn(tlb_index, p15, 5, c15, c4, 2);
+cp_asm_set_fn(tlb_va, p15, 5, c15, c5, 2);
+cp_asm_set_fn(tlb_pa, p15, 5, c15, c6, 2);
+cp_asm_set_fn(tlb_attr, p15, 5, c15, c7, 2);
+
+cp_asm_get_fn(tlb_index, p15, 5, c15, c4, 2);
+cp_asm_get_fn(tlb_va, p15, 5, c15, c5, 2);
+cp_asm_get_fn(tlb_pa, p15, 5, c15, c6, 2);
+cp_asm_get_fn(tlb_attr, p15, 5, c15, c7, 2);
+
+
+
+
+uint32_t generate_mask_13(uint32_t start, uint32_t end) {
+    if (start >= 32 || end > 32 || start >= end) {
+        return 0; // Return 0 for invalid inputs
+    }
+    return ((1U << (end - start)) - 1) << start;
+}
+
+uint32_t read_modify_write_13(uint32_t originalValue, uint32_t bitNumberStart, uint32_t bitNumberEnd, uint32_t value) {
+    uint32_t bitMask = generate_mask_13(bitNumberStart, bitNumberEnd);
+    if (bitMask == 0) {
+        return originalValue; // Return original value if mask is invalid
+    }
+
+    // Ensure value fits within the mask
+    value &= (bitMask >> bitNumberStart);
+
+    originalValue &= ~bitMask;  // Clear the bits in the range
+    originalValue |= value << bitNumberStart; // Set new bits
+
+    return originalValue;
+}
+
+char* to_binary(uint32_t number) {
+    char* buffer = (char*)kmalloc(33 * sizeof(char)); // Allocate memory dynamically
+    if (buffer == NULL) {
+        return NULL; // Handle memory allocation failure
+    }
+    
+    for (int i = 31; i >= 0; i--) {
+        buffer[31 - i] = (number & (1U << i)) ? '1' : '0';
+    }
+    
+    buffer[32] = '\0'; // Null-terminate the string
+    return buffer;
+}
+
 
 static void *null_pt = 0;
 
@@ -58,12 +107,48 @@ void pin_mmu_sec(unsigned idx,
 
 
     // delete this and do add your code below.
-    staff_pin_mmu_sec(idx, va, pa, e);
-    return;
+    //staff_pin_mmu_sec(idx, va, pa, e);
+    // return;
 
     // these will hold the values you assign for the tlb entries.
     uint32_t x, va_ent, pa_ent, attr;
-    todo("assign these variables!\n");
+    // todo("assign these variables!\n");
+    // tlb lockdown index
+    x = tlb_index_get();
+    trace("before idx is %s \n", to_binary(x));
+    x = read_modify_write_13(x, 0, 3, idx);
+    trace("after idx is %s \n", to_binary(x));
+    tlb_index_set(idx);
+    // tlb lockdown VA register
+    // uint32_t i = 0;
+    // i = read_modify_write_13(i, 9, 10, 1);
+    // trace("try i %u \n", i);
+
+    va_ent = tlb_va_get();
+    trace("before va_ent is %s \n", to_binary(va_ent));
+    va_ent = read_modify_write_13(va_ent, 12, 32, va); // TODO: set asid and secure mode
+    va_ent = read_modify_write_13(va_ent, 9, 10, 1);
+    va_ent = read_modify_write_13(va_ent, 0, 8, 0);
+    trace("after va_ent is %s \n", to_binary(va_ent));
+    tlb_va_set(va_ent);
+    // // tlb lockdown PA register
+    pa_ent = tlb_pa_get();
+    trace("before pa_ent is %s \n", to_binary(pa_ent));
+    pa_ent = read_modify_write_13(pa_ent, 12, 32, pa);
+    pa_ent = read_modify_write_13(pa_ent, 6, 8, 3); // set size to 1MB sections
+    // pa_ent = read_modify_write_13(pa_ent, 1, 3, 3); // AP set to 11
+    // pa_ent = read_modify_write_13(pa_ent, 3, 4, 0); // APX set to 0
+    pa_ent = read_modify_write_13(pa_ent, 0, 1, 1); // entry is valid
+    pa_ent |= perm_ro_priv;
+    tlb_pa_set(pa_ent);
+    trace("after pa_ent is %s \n", to_binary(va_ent));
+    // // tlb lockdown attributes register
+    attr = tlb_attr_get();
+    trace("before attr is %s \n", to_binary(attr));
+    attr = read_modify_write_13(attr, 7, 10, DOM_manager); // set domain to 0
+    attr |= MEM_device; // set tex, c, b to shareable
+    tlb_attr_set(attr);
+    trace("after attr is %s \n", to_binary(attr));
 
     // put your code here.
     unimplemented();
@@ -108,4 +193,20 @@ void pin_set_context(uint32_t asid) {
 
 void pin_clear(unsigned idx)  {
     staff_pin_clear(idx);
+}
+
+
+void staff_lockdown_print_entry(unsigned idx);
+
+void lockdown_print_entry(unsigned idx) {
+
+    staff_lockdown_print_entry(idx);
+}
+
+void lockdown_print_entries(const char *msg) {
+    trace("-----  <%s> ----- \n", msg);
+    trace("  pinned TLB lockdown entries:\n");
+    for(int i = 0; i < 8; i++)
+        lockdown_print_entry(i);
+    trace("----- ---------------------------------- \n");
 }
