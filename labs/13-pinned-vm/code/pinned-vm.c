@@ -13,18 +13,25 @@
 // (see asm-helpers.h for the cp_asm macro 
 // definition)
 // arm1176.pdf: 3-149
+// #define cp_asm_get_fn(fn_name, coproc, opcode_1, Crn, Crm, opcode_2)
+
 cp_asm_set_fn(tlb_index, p15, 5, c15, c4, 2);
 cp_asm_set_fn(tlb_va, p15, 5, c15, c5, 2);
 cp_asm_set_fn(tlb_pa, p15, 5, c15, c6, 2);
 cp_asm_set_fn(tlb_attr, p15, 5, c15, c7, 2);
+cp_asm_set_fn(domain_access_control, p15, 0, c3, c0, 0);
 
 cp_asm_get_fn(tlb_index, p15, 5, c15, c4, 2);
 cp_asm_get_fn(tlb_va, p15, 5, c15, c5, 2);
 cp_asm_get_fn(tlb_pa, p15, 5, c15, c6, 2);
 cp_asm_get_fn(tlb_attr, p15, 5, c15, c7, 2);
+cp_asm_get_fn(domain_access_control, p15, 0, c3, c0, 0);
 
+cp_asm_get_fn(va_to_pa, p15, 0, c7, c8, 0);
+cp_asm_set_fn(va_to_pa, p15, 0, c7, c8, 0);
 
-
+cp_asm_get_fn(pa, p15, 0, c7, c4, 0);
+cp_asm_set_fn(pa, p15, 0, c7, c4, 0);
 
 uint32_t generate_mask_13(uint32_t start, uint32_t end) {
     if (start >= 32 || end > 32 || start >= end) {
@@ -74,7 +81,14 @@ void domain_access_ctrl_set(uint32_t d) {
 // NOTE: 
 //    you'll need to allocate an invalid page table
 void pin_mmu_init(uint32_t domain_reg) {
-    staff_pin_mmu_init(domain_reg);
+    // full_except_install(0);
+    // full_except_set_data_abort(data_abort_handler);
+    null_pt = kmalloc_aligned(4096*4, 1<<14);
+    assert((uint32_t)null_pt % (1<<14) == 0);
+    domain_access_control_set(domain_reg);
+
+    // unimplemented(); 
+    //staff_pin_mmu_init(domain_reg);
     return;
 }
 
@@ -85,10 +99,19 @@ void pin_mmu_init(uint32_t domain_reg) {
 // NOTE: mmu must be on (confusing).
 int tlb_contains_va(uint32_t *result, uint32_t va) {
     assert(mmu_is_enabled());
-
     // 3-79
     assert(bits_get(va, 0,2) == 0);
-    return staff_tlb_contains_va(result, va);
+    va_to_pa_set(va); // set reg to va
+    uint32_t pa_conv = pa_get(); // convert to pa
+    // trace("pa_conv is %s \n", to_binary(pa_conv));
+    *result = pa_conv;
+    uint32_t firstBit = bits_get(pa_conv, 0, 0); // 0 bit of pa reg shows success, 1 = failure;
+    if (firstBit == 0) {
+        return 1;
+    } else {
+        return 0;
+    }
+    // return staff_tlb_contains_va(result, va);
 }
 
 // map <va>-><pa> at TLB index <idx> with attributes <e>
@@ -115,43 +138,44 @@ void pin_mmu_sec(unsigned idx,
     // todo("assign these variables!\n");
     // tlb lockdown index
     x = tlb_index_get();
-    trace("before idx is %s \n", to_binary(x));
+    // trace("before idx is %s \n", to_binary(x));
     x = read_modify_write_13(x, 0, 3, idx);
-    trace("after idx is %s \n", to_binary(x));
+    // trace("after idx is %s \n", to_binary(x));
     tlb_index_set(idx);
     // tlb lockdown VA register
     // uint32_t i = 0;
     // i = read_modify_write_13(i, 9, 10, 1);
     // trace("try i %u \n", i);
 
-    va_ent = tlb_va_get();
-    trace("before va_ent is %s \n", to_binary(va_ent));
-    va_ent = read_modify_write_13(va_ent, 12, 32, va); // TODO: set asid and secure mode
-    va_ent = read_modify_write_13(va_ent, 9, 10, 1);
-    va_ent = read_modify_write_13(va_ent, 0, 8, 0);
-    trace("after va_ent is %s \n", to_binary(va_ent));
+    va_ent = va; // so this is the entry number and the last 12 bytes
+    // trace("before va_ent is %s \n", to_binary(va_ent));
+    // va_ent = read_modify_write_13(va_ent, 12, 32, va); // TODO: set asid and secure mode
+    va_ent = read_modify_write_13(va_ent, 9, 10, e.G);
+    va_ent = read_modify_write_13(va_ent, 0, 8, e.asid);
+    // trace("after va_ent is %s \n", to_binary(va_ent));
     tlb_va_set(va_ent);
     // // tlb lockdown PA register
-    pa_ent = tlb_pa_get();
-    trace("before pa_ent is %s \n", to_binary(pa_ent));
-    pa_ent = read_modify_write_13(pa_ent, 12, 32, pa);
-    pa_ent = read_modify_write_13(pa_ent, 6, 8, 3); // set size to 1MB sections
-    // pa_ent = read_modify_write_13(pa_ent, 1, 3, 3); // AP set to 11
-    // pa_ent = read_modify_write_13(pa_ent, 3, 4, 0); // APX set to 0
+    pa_ent = pa;
+    // trace("before pa_ent is %s \n", to_binary(pa_ent));
+    // pa_ent = read_modify_write_13(pa_ent, 12, 32, pa);
+    pa_ent = read_modify_write_13(pa_ent, 6, 8, e.pagesize); // set size to 1MB sections
+    uint32_t APX = e.AP_perm >> 2;
+    pa_ent = read_modify_write_13(pa_ent, 3, 4, APX); // AP bit
+    uint32_t AP = e.AP_perm & 3;
+    pa_ent = read_modify_write_13(pa_ent, 1, 3, AP); // APX set to 0
     pa_ent = read_modify_write_13(pa_ent, 0, 1, 1); // entry is valid
-    pa_ent |= perm_ro_priv;
     tlb_pa_set(pa_ent);
-    trace("after pa_ent is %s \n", to_binary(va_ent));
+    // trace("after pa_ent is %s \n", to_binary(va_ent));
     // // tlb lockdown attributes register
-    attr = tlb_attr_get();
-    trace("before attr is %s \n", to_binary(attr));
-    attr = read_modify_write_13(attr, 7, 10, DOM_manager); // set domain to 0
-    attr |= MEM_device; // set tex, c, b to shareable
+    attr = 0;
+    // trace("before attr is %s \n", to_binary(attr));
+    attr = read_modify_write_13(attr, 7, 11, e.dom); // set domain to 0
+    attr = read_modify_write_13(attr, 1, 6, e.mem_attr);
     tlb_attr_set(attr);
-    trace("after attr is %s \n", to_binary(attr));
+    // trace("after attr is %s \n", to_binary(attr));
 
     // put your code here.
-    unimplemented();
+    // unimplemented();
 
 #if 0
     if((x = lockdown_va_get()) != va_ent)
@@ -183,16 +207,27 @@ int pin_exists(uint32_t va, int verbose_p) {
 // look in test <1-test-basic.c> to see what to do.
 // need to set the <asid> before turning VM on and 
 // to switch processes.
+// TODO: review what domain and context are??
 void pin_set_context(uint32_t asid) {
     // put these back
-    // demand(asid > 0 && asid < 64, invalid asid);
-    // demand(null_pt, must setup null_pt --- look at tests);
-
-    staff_pin_set_context(asid);
+    demand(asid > 0 && asid < 64, invalid asid);
+    demand(null_pt, must setup null_pt --- look at tests);
+    uint32_t PID = 128;
+    staff_mmu_set_ctx(PID, asid, null_pt);
+    // staff_pin_set_context(asid);
 }
 
 void pin_clear(unsigned idx)  {
-    staff_pin_clear(idx);
+    tlb_index_set(idx);
+    uint32_t va_ent = 0; // so this is the entry number and the last 12 bytes
+    tlb_va_set(va_ent);
+    assert(tlb_va_get() == 0);
+    uint32_t pa_ent = 0;
+    tlb_pa_set(pa_ent);
+    assert(tlb_pa_get() == 0);
+    uint32_t attr = 0;
+    tlb_attr_set(attr);
+    assert(tlb_attr_get() == 0); 
 }
 
 
