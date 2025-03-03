@@ -20,7 +20,7 @@ COMMON_SRC := nrf-hw-support.c nrf-public.c nrf-driver.c
 STAFF_OBJS += staff-nrf-driver.o
 
 STAFF_OBJS += $(CS140E_2025_PATH)/libpi/staff-objs/staff-hw-spi.o
-
+STAFF_OBJS +=  $(CS140E_2025_PATH)/libpi/staff-objs/kmalloc.o
 # uncomment if you want it to automatically run.
 RUN=1
 
