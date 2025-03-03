@@ -9,11 +9,6 @@
 #include "mmu.h"
 #include "procmap.h"
 
-// generate the _get and _set methods.
-// (see asm-helpers.h for the cp_asm macro 
-// definition)
-// arm1176.pdf: 3-149
-// #define cp_asm_get_fn(fn_name, coproc, opcode_1, Crn, Crm, opcode_2)
 
 cp_asm_set_fn(tlb_index, p15, 5, c15, c4, 2);
 cp_asm_set_fn(tlb_va, p15, 5, c15, c5, 2);
@@ -32,6 +27,14 @@ cp_asm_set_fn(va_to_pa, p15, 0, c7, c8, 0);
 
 cp_asm_get_fn(pa, p15, 0, c7, c4, 0);
 cp_asm_set_fn(pa, p15, 0, c7, c4, 0);
+
+// generate the _get and _set methods.
+// (see asm-helpers.h for the cp_asm macro 
+// definition)
+// arm1176.pdf: 3-149
+// #define cp_asm_get_fn(fn_name, coproc, opcode_1, Crn, Crm, opcode_2)
+
+
 
 uint32_t generate_mask_13(uint32_t start, uint32_t end) {
     if (start >= 32 || end > 32 || start >= end) {
@@ -84,6 +87,7 @@ void pin_mmu_init(uint32_t domain_reg) {
     // full_except_install(0);
     // full_except_set_data_abort(data_abort_handler);
     null_pt = kmalloc_aligned(4096*4, 1<<14);
+    // trace("null_ptr is %x, \n", null_pt);
     assert((uint32_t)null_pt % (1<<14) == 0);
     domain_access_control_set(domain_reg);
 
@@ -99,20 +103,21 @@ void pin_mmu_init(uint32_t domain_reg) {
 // NOTE: mmu must be on (confusing).
 int tlb_contains_va(uint32_t *result, uint32_t va) {
     assert(mmu_is_enabled());
-    // 3-79
-    assert(bits_get(va, 0,2) == 0);
-    va_to_pa_set(va); // set reg to va
-    uint32_t pa_conv = pa_get(); // convert to pa
-    // trace("pa_conv is %s \n", to_binary(pa_conv));
+    assert(bits_get(va, 0, 2) == 0); // Ensure va is properly aligned
+    
+    va_to_pa_set(va); 
+    uint32_t pa_conv = pa_get(); 
+    
     *result = pa_conv;
-    uint32_t firstBit = bits_get(pa_conv, 0, 0); // 0 bit of pa reg shows success, 1 = failure;
-    if (firstBit == 0) {
+    *result = (bits_get(pa_conv, 10, 31) << 10) | bits_get(va, 0, 9);
+    uint32_t success = bits_get(pa_conv, 0, 0); // Check success bit
+    if (success == 0) {
         return 1;
     } else {
         return 0;
     }
-    // return staff_tlb_contains_va(result, va);
 }
+
 
 // map <va>-><pa> at TLB index <idx> with attributes <e>
 void pin_mmu_sec(unsigned idx,  
@@ -194,6 +199,8 @@ int pin_exists(uint32_t va, int verbose_p) {
 
     uint32_t r;
     if(tlb_contains_va(&r, va)) {
+        // trace("r is result %s \n", to_binary(r));
+        // trace("va is result %s \n", to_binary(va));
         assert(va == r);
         return 1;
     } else {
@@ -211,6 +218,7 @@ int pin_exists(uint32_t va, int verbose_p) {
 void pin_set_context(uint32_t asid) {
     // put these back
     demand(asid > 0 && asid < 64, invalid asid);
+    // trace("null_ptr is %x, \n", null_pt);
     demand(null_pt, must setup null_pt --- look at tests);
     uint32_t PID = 128;
     staff_mmu_set_ctx(PID, asid, null_pt);
@@ -234,8 +242,47 @@ void pin_clear(unsigned idx)  {
 void staff_lockdown_print_entry(unsigned idx);
 
 void lockdown_print_entry(unsigned idx) {
+    //staff_lockdown_print_entry(idx);
+    //return;
+    trace("   idx=%d\n", idx);
+    tlb_index_set(idx);
+    uint32_t va_ent = tlb_va_get();
+    uint32_t pa_ent = tlb_pa_get();
+    unsigned v = bit_get(pa_ent, 0);
 
-    staff_lockdown_print_entry(idx);
+    if(!v) {
+        trace("     [invalid entry %d]\n", idx);
+        return;
+    }
+
+    // // 3-149
+    uint32_t G = bits_get(va_ent, 9, 9);
+    uint32_t asid = bits_get(va_ent, 0, 7);
+    uint32_t va = bits_get(va_ent, 12, 31);
+    trace("     va_ent=%x: va=%x|G=%d|ASID=%d\n",
+        va_ent, va, G, asid);
+
+    // // 3-150
+    // ...fill in the needed vars...
+    uint32_t size = bits_get(pa_ent, 6, 7);
+    uint32_t apx = bits_get(pa_ent, 1, 3);
+    // uint32_t ap = bits_get(pa_ent, 1, 2);
+    uint32_t nsa = bits_get(pa_ent, 9, 9);
+    uint32_t nstid = bits_get(pa_ent, 8, 8);
+    uint32_t pa = bits_get(pa_ent, 12, 31);
+    trace("     pa_ent=%x: pa=%x|nsa=%d|nstid=%d|size=%b|apx=%b|v=%d\n",
+                pa_ent, pa, nsa,nstid,size, apx,v);
+
+    // // 3-151
+    // ...fill in the needed vars...
+    uint32_t attr = tlb_attr_get();
+    uint32_t dom = bits_get(attr, 7, 10);
+    uint32_t xn = bit_get(attr, 6);
+    uint32_t tex = bits_get(attr, 3, 5);
+    uint32_t C = bit_get(attr, 2);
+    uint32_t B = bit_get(attr, 1);
+    trace("     attr=%x: dom=%d|xn=%d|tex=%b|C=%d|B=%d\n",
+            attr, dom,xn,tex,C,B);
 }
 
 void lockdown_print_entries(const char *msg) {
