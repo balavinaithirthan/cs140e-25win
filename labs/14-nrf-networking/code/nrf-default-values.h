@@ -14,10 +14,30 @@
 //  0xe1e1e1,
 //  0xd3d3d3,
 
+#define RF_DR_HI(x) ((x) << 3)
+#define RF_DR_LO(x) ((x) << 5)
+// clear both bits.
+#define RF_DR_CLR(x) ((x) & ~(RF_DR_HI(1) | RF_DR_LO(1)))
+typedef enum {
+    nrf_1Mbps   = 0,            // both RF_DR_HI=0 and RF_DR_LO=0.
+    nrf_2Mbps   = RF_DR_HI(1),  // RF_DR_LO=0, RF_DR_HI=1.
+    nrf_250kbps = RF_DR_LO(1),  // RF_DR_LO=1, RF_DR_HI=0.
+} nrf_datarate_t;
+
+
+typedef enum {
+    dBm_minus18 = 0b00 << 1, // 7mA
+    dBm_minus12 = 0b01 << 1, // 7.5mA
+    dBm_minus6  = 0b10 << 1, // 9mA
+    dBm_0       = 0b11 << 1, // 11mA
+} nrf_db_t;
+
 enum {
     server_addr = 0xd5d5d5,
     client_addr = 0xe5e5e5,
 };
+
+
 
 enum {
     nrf_default_nbytes              = 4,            // 4 byte packets.

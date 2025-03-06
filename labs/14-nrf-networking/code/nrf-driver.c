@@ -355,10 +355,9 @@ int nrf_tx_send_ack(nrf_t *n, uint32_t txaddr,
     nrf_opt_assert(n, !nrf_tx_fifo_empty(n));
     nrf_tx_mode(n);
     while (!nrf_has_tx_intr(n)) {
-
-    }
-    if (nrf_has_max_rt_intr(n)) {
-        panic("max limit hit");
+        if (nrf_has_max_rt_intr(n)) {
+            panic("max limit hit");
+        }
     }
     nrf_opt_assert(n, nrf_tx_fifo_empty(n));
     nrf_tx_intr_clr(n);

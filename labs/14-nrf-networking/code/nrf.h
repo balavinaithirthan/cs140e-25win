@@ -197,23 +197,7 @@ int nrf_send_noack(nrf_t *nic, uint32_t txaddr, const void *msg, unsigned nbytes
  * a bit easier to navigate in lab.
  */
 
-#define RF_DR_HI(x) ((x) << 3)
-#define RF_DR_LO(x) ((x) << 5)
-// clear both bits.
-#define RF_DR_CLR(x) ((x) & ~(RF_DR_HI(1) | RF_DR_LO(1)))
-typedef enum {
-    nrf_1Mbps   = 0,            // both RF_DR_HI=0 and RF_DR_LO=0.
-    nrf_2Mbps   = RF_DR_HI(1),  // RF_DR_LO=0, RF_DR_HI=1.
-    nrf_250kbps = RF_DR_LO(1),  // RF_DR_LO=1, RF_DR_HI=0.
-} nrf_datarate_t;
 
-
-typedef enum {
-    dBm_minus18 = 0b00 << 1, // 7mA
-    dBm_minus12 = 0b01 << 1, // 7.5mA
-    dBm_minus6  = 0b10 << 1, // 9mA
-    dBm_0       = 0b11 << 1, // 11mA
-} nrf_db_t;
 
 // these you can modify.
 #include "nrf-default-values.h"
