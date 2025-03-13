@@ -36,32 +36,78 @@ MK_FN(get_cache_type)
 
 // void reset(void)
 // clear the dcache, icache, tlbs
+/*
+    1: STR rx  ; instruction location
+    2: clean data cache by MVA ; instruction location
+    3: DSB  ; ensures visibility of (2)
+    4: invalidate icache by MVA
+    5: Invalidate BTB
+    6: DSB; ensure (4) completes
+    7: Prefetch flush
+    note: doing nothing with actually mapping rn, mapping stays the same
+*/
 MK_FN(mmu_reset)
-    b staff_mmu_reset
-
-    asm_not_implemented()
+    @ b staff_mmu_reset
+    push {lr}
+    INV_DCACHE(r0)
+    DSB(r1)
+    INV_ICACHE(r2)
+    FLUSH_BTB(r3)
+    INV_TLB(r0)
+    DSB(r1)
+    PREFETCH_FLUSH(r2)
+    @ asm_not_implemented()
+    pop {lr}
     bx lr
 
 // void cp15_domain_ctrl_wr(uint32_t dom_reg);
 //  need to do cp15 sync: flush_btb, dsb, prefetch flush
 MK_FN(cp15_domain_ctrl_wr)
-    b staff_cp15_domain_ctrl_wr
-
-    asm_not_implemented()
+    MCR p15, 0, r0, c1, c0, 0
+    PREFETCH_FLUSH(r2)
     bx lr
 
-// void cp15_set_procid_ttbr0(uint32_t proc_and_asid, fld_t *pt);
+// void cp15_set_procid_ttbr0(uint32_t pid, uint32_t asid, void *pt);
 // sequence from b2-25
-MK_FN(cp15_set_procid_ttbr0)
-    b staff_cp15_set_procid_ttbr0
 
-    asm_not_implemented()
+/*
+Goal: given a proccessor and address id, we should be able to set TLB entries to have them
+- we have the page table pointer as "null_pt"
+ */
+MK_FN(cp15_set_procid_ttbr0)
+    @ b staff_cp15_set_procid_
+    @ asm_not_implemented()
+    MOV R3, #0
+    lsl r1, r1, #14 @ shift left by 14
+    TTBR0_SET(r1)  @ write to register
+    TTBR_BASE_CTRL_WR(R3)
+    DSB(r2)
+    PREFETCH_FLUSH(r2)
+    ASID_SET(R3)
+    PREFETCH_FLUSH(r2)
+    TTBR1_SET(R3)
+    DSB(r1)
+    PREFETCH_FLUSH(r2)
+    ASID_SET(r0)
+    push {r0}
+    pop {r0}
+
+    CLEAN_INV_DCACHE(r1)
+    INV_ICACHE(r1)
+    FLUSH_BTB(r1)
+    DSB(r1)
+    PREFETCH_FLUSH(r1)
+
     bx lr
 
 // void mmu_disable_set_asm(cp15_ctrl_reg1_t c);
 MK_FN(mmu_disable_set_asm)
-    b staff_mmu_disable_set_asm
-
+    @ b staff_mmu_disable_set_asm
+    CLEAN_INV_DCACHE(r1)
+    INV_ICACHE(r1)
+    FLUSH_BTB(r1)
+    DSB(r1)
+    PREFETCH_FLUSH(r1)
     @ note: this piece of code is mapped into the same place in both
     @ MMU-enabled and MMU-disabled so BTB and Prefetch entries work identically
     @ to both MMU-enable and disable.   Without this requirement I believe is
@@ -69,20 +115,42 @@ MK_FN(mmu_disable_set_asm)
     @ the BTB and prefetch and switch MMU on/off atomically.  thus, would
     @ flush, but instructions could get fetched before we could disable,
     @ defeating the purpose.
-
-    asm_not_implemented()
+    CONTROL_REG1_WR(r0)
+    @ asm_not_implemented()
     bx lr
 
-// void mmu_enable_set_asm(cp15_ctrl_reg1_t c);
+@ void mmu_enable_set_asm(cp15_ctrl_reg1_t c);
 MK_FN(mmu_enable_set_asm)
-    b staff_mmu_enable_set_asm
-
-    asm_not_implemented()
+    @ asm_not_implemented()
+    TLB_CONFIG_RD(r1)
+    FLUSH_BTB(r1)
+    DSB(r1)
+    PREFETCH_FLUSH(r1)
+    CONTROL_REG1_WR(r0)
     bx lr
 
-MK_FN(mmu_sync_pte_mods)
-    b staff_mmu_sync_pte_mods
-
-    asm_not_implemented()
+MK_FN(mmu_sync_pte_mods) 
+    push {lr}
+    CLEAN_INV_DCACHE(r0)
+    DSB(r1)
+    INV_ICACHE(r2)
+    FLUSH_BTB(r3)
+    INV_TLB(r0)
+    DSB(r1)
+    PREFETCH_FLUSH(r2)
+    pop {lr}
     bx lr
+
+    @ asm_not_implemented()
+    @ bx lr
+
+@ cp15_ctrl_reg1_t cp15_ctrl_reg1_rd(void)
+MK_FN(_cp15_ctrl_reg1_rd)
+    @ asm_not_implemented()
+    MRC p15, 0, r0, c1, c0, 0
+    PREFETCH_FLUSH(r2)
+    bx lr
+
+
+
 
