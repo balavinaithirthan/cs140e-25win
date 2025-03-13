@@ -11,7 +11,7 @@ PROGS += tests/2-test-procmap.c
 PROGS += tests/4-test-vm-cache-mgmt.c
 
 # you'll have to copy this from lab 13.
-COMMON_SRC += pinned-vm.c
+COMMON_SRC += orig-pinned-vm.c
 
 # You'll modify these two files.
 COMMON_SRC += your-mmu-asm.S
@@ -25,8 +25,8 @@ STAFF_OBJS += $(O)/staff-objs/staff-switchto-asm.o
 STAFF_OBJS += $(O)/staff-objs/kmalloc.o
 
 # you should be able to delete all of these after the lab.
-STAFF_OBJS += staff-mmu-asm.o  
-STAFF_OBJS += staff-mmu.o  
+# STAFF_OBJS += staff-mmu-asm.o  
+# STAFF_OBJS += staff-mmu.o  
 
 # these are just from lab 13: should be able to delete
 # after you copy your code over.

@@ -1,0 +1,14 @@
+# .clang-format
+
+BasedOnStyle: Google
+SortIncludes: false
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 100
+
+# You can further customize the style as needed
+IndentCaseLabels: true
+AllowShortFunctionsOnASingleLine: InlineOnly
+BreakBeforeBraces: Allman
+SpaceBeforeParens: ControlStatements
