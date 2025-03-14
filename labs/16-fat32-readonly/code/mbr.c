@@ -2,16 +2,17 @@
 #include "pi-sd.h"
 #include "mbr.h"
 
-mbr_t *mbr_read() {
-  // Be sure to call pi_sd_init() before calling this function!
+mbr_t* mbr_read()
+{
+    // Be sure to call pi_sd_init() before calling this function!
+    pi_sd_init();
+    // TODO: Read the MBR into a heap-allocated buffer.  Use `pi_sd_read` or
+    // `pi_sec_read` to read 1 sector from LBA 0 into memory.
+    mbr_t* data = (mbr_t*)pi_sec_read(0, 1);
 
-  // TODO: Read the MBR into a heap-allocated buffer.  Use `pi_sd_read` or
-  // `pi_sec_read` to read 1 sector from LBA 0 into memory.
-  unimplemented();
+    // TODO: Verify that the MBR is valid. (see mbr_check)
+    mbr_check(data);
 
-  // TODO: Verify that the MBR is valid. (see mbr_check)
-  unimplemented();
-
-  // TODO: Return the MBR.
-  unimplemented();
+    // TODO: Return the MBR.
+    return data;
 }
