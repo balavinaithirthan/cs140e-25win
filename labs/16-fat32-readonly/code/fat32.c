@@ -256,7 +256,7 @@ static int find_dirent_with_name(fat32_dirent_t *dirents, int num_entries, char 
     for (int i = 0; i < num_entries; i++)
     {
         pi_dirent_t pi_dirent = dirent_convert(&dirents[i]);
-        if (pi_dirent.name == filename)
+        if (strcmp(pi_dirent.name, filename) == 0)
         {
             return i;
         }
@@ -278,6 +278,10 @@ pi_dirent_t *fat32_stat(fat32_fs_t *fs, pi_dirent_t *directory, char *filename)
     // `find_dirent_with_name` if you've implemented it.
     // unimplemented();
     int dir_loc = find_dirent_with_name(fat_directory_entries, num_entries, filename);
+    if (dir_loc == -1)
+    {
+        return NULL;
+    }
     // TODO: allocate enough space for the dirent, then convert
     pi_dirent_t *dirent = kmalloc(sizeof(pi_dirent_t));
     // (`dirent_convert`) the fat32 dirent into a Pi dirent.
@@ -292,23 +296,33 @@ pi_file_t *fat32_read(fat32_fs_t *fs, pi_dirent_t *directory, char *filename)
     demand(directory->is_dir_p, "tried to use a file as a directory!");
 
     // TODO: read the dirents of the provided directory and look for one matching the provided name
-    unimplemented();
+    pi_dirent_t *found = fat32_stat(fs, directory, filename);
+    if (found == NULL)
+    {
+        return NULL;
+    }
 
     // TODO: figure out the length of the cluster chain
-    unimplemented();
+    int num_clusters = get_cluster_chain_length(fs, found->cluster_id);
 
     // TODO: allocate a buffer large enough to hold the whole file
-    unimplemented();
+    // unimplemented();
+    uint32_t toAlloc = num_clusters * fs->sectors_per_cluster * 512;
+    void *data = kmalloc(toAlloc);
 
     // TODO: read in the whole file (if it's not empty)
-    unimplemented();
+    // unimplemented();
+    if (found->nbytes > 0)
+    {
+        read_cluster_chain(fs, found->cluster_id, data);
+    }
 
     // TODO: fill the pi_file_t
     pi_file_t *file = kmalloc(sizeof(pi_file_t));
     *file = (pi_file_t){
-        .data = NULL,
-        .n_data = 0,
-        .n_alloc = 0,
+        .data = data,
+        .n_data = found->nbytes,
+        .n_alloc = toAlloc,
     };
     return file;
 }
