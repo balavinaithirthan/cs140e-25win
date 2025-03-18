@@ -7,13 +7,18 @@
 #include "asm-helpers.h"
 #include "mmu-internal.h"
 
-cp_asm_get_fn(domain_access_control_2, p15, 0, c3, c0, 0)
-    cp_asm_set_fn(domain_access_control_2, p15, 0, c3, c0, 0)
+cp_asm_get_fn(domain_access_control_2, p15, 0, c3, c0, 0);
+cp_asm_set_fn(domain_access_control_2, p15, 0, c3, c0, 0);
 
-        cp15_ctrl_reg1_t cp15_ctrl_reg1_rd(void)
+cp15_ctrl_reg1_t cp15_ctrl_reg1_rd(void)
 {
     cp15_ctrl_reg1_t output = _cp15_ctrl_reg1_rd();
     return output;
+}
+
+void cp15_ctrl_reg1_wr(cp15_ctrl_reg1_t r)
+{
+    _cp15_ctrl_reg1_wr(r);
 }
 
 int mmu_is_enabled(void)

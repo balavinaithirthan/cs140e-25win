@@ -47,7 +47,6 @@ MK_FN(get_cache_type)
     note: doing nothing with actually mapping rn, mapping stays the same
 */
 MK_FN(mmu_reset)
-    @ b staff_mmu_reset
     push {lr}
     INV_DCACHE(r0)
     DSB(r1)
@@ -56,7 +55,6 @@ MK_FN(mmu_reset)
     INV_TLB(r0)
     DSB(r1)
     PREFETCH_FLUSH(r2)
-    @ asm_not_implemented()
     pop {lr}
     bx lr
 
@@ -75,8 +73,6 @@ Goal: given a proccessor and address id, we should be able to set TLB entries to
 - we have the page table pointer as "null_pt"
  */
 MK_FN(cp15_set_procid_ttbr0)
-    @ b staff_cp15_set_procid_
-    @ asm_not_implemented()
     MOV R3, #0
     lsl r1, r1, #14 @ shift left by 14
     TTBR0_SET(r1)  @ write to register
@@ -102,7 +98,6 @@ MK_FN(cp15_set_procid_ttbr0)
 
 // void mmu_disable_set_asm(cp15_ctrl_reg1_t c);
 MK_FN(mmu_disable_set_asm)
-    @ b staff_mmu_disable_set_asm
     CLEAN_INV_DCACHE(r1)
     INV_ICACHE(r1)
     FLUSH_BTB(r1)
@@ -141,13 +136,16 @@ MK_FN(mmu_sync_pte_mods)
     pop {lr}
     bx lr
 
-    @ asm_not_implemented()
-    @ bx lr
 
 @ cp15_ctrl_reg1_t cp15_ctrl_reg1_rd(void)
 MK_FN(_cp15_ctrl_reg1_rd)
     @ asm_not_implemented()
     MRC p15, 0, r0, c1, c0, 0
+    PREFETCH_FLUSH(r2)
+    bx lr
+
+MK_FN(_cp15_ctrl_reg1_wr)
+    MCR p15, 0, r0, c1, c0, 0
     PREFETCH_FLUSH(r2)
     bx lr
 
