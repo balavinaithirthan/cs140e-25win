@@ -3,23 +3,24 @@
 #include "fat32.h"
 #include "libc/fast-hash32.h"
 
-void notmain() {
-  kmalloc_init(FAT32_HEAP_MB);
-  pi_sd_init();
+void notmain()
+{
+    kmalloc_init(FAT32_HEAP_MB);
+    pi_sd_init();
 
-  printk("Reading the MBR.\n");
-  mbr_t *mbr = mbr_read();
+    printk("Reading the MBR.\n");
+    mbr_t *mbr = mbr_read();
 
-  printk("Loading the first partition.\n");
-  mbr_partition_ent_t partition;
-  memcpy(&partition, mbr->part_tab1, sizeof(mbr_partition_ent_t));
-  assert(mbr_part_is_fat32(partition.part_type));
+    printk("Loading the first partition.\n");
+    mbr_partition_ent_t partition;
+    memcpy(&partition, mbr->part_tab1, sizeof(mbr_partition_ent_t));
+    assert(mbr_part_is_fat32(partition.part_type));
 
-  printk("Loading the FAT.\n");
-  fat32_fs_t fs = fat32_mk(&partition);
+    printk("Loading the FAT.\n");
+    fat32_fs_t fs = fat32_mk(&partition);
 
-  printk("Loading the root directory.\n");
-  pi_dirent_t root = fat32_get_root(&fs);
+    printk("Loading the root directory.\n");
+    pi_dirent_t root = fat32_get_root(&fs);
 
 #if 0
   printk("Listing files:\n");
@@ -44,8 +45,7 @@ void notmain() {
     pi_file_t *f = fat32_read(&fs, &root, name);
     assert(f);
 
-    printk("crc of %s (nbytes=%d) = %x\n", name, f->n_data, 
-            fast_hash(f->data,f->n_data));
+    printk("crc of %s (nbytes=%d) = %x\n", name, f->n_data, fast_hash(f->data, f->n_data));
 
     name = "HELLO-F.BIN";
     printk("Looking for %s.\n", name);
@@ -56,12 +56,10 @@ void notmain() {
     f = fat32_read(&fs, &root, name);
     assert(f);
 
-    printk("crc of %s (nbytes=%d) = %x\n", name, f->n_data, 
-            fast_hash(f->data,f->n_data));
+    printk("crc of %s (nbytes=%d) = %x\n", name, f->n_data, fast_hash(f->data, f->n_data));
 
-    uint32_t *p = (void*)f->data;
-    for(int i = 0; i < 4; i++) 
-        printk("p[%d]=%x (%d)\n", i,p[i],p[i]);
+    uint32_t *p = (void *)f->data;
+    for (int i = 0; i < 4; i++) printk("p[%d]=%x (%d)\n", i, p[i], p[i]);
 
     // magic cookie at offset 0.
     assert(p[0] == 0x12345678);
@@ -70,15 +68,16 @@ void notmain() {
     uint32_t addr = p[2];
     assert(addr == 0x9000000);
 
-
     trace("about to call <%s>\n", name);
 
     // jump to it using BRANCHTO.  make sure
     // you skip the header!  (see in hello-f.list
     // and memmap.fixed in 13-fat32/hello-fixed
-    unimplemented();
-
+    // unimplemented();
+    // turn into pointer type
+    memcpy((uint32_t *)addr, (char *)p, p[1] + p[3]);  // why not p + p[1]
+    BRANCHTO((uint32_t)addr);
     trace("returned from <%s>!\n", name);
 
-  printk("PASS: %s\n", __FILE__);
+    printk("PASS: %s\n", __FILE__);
 }
